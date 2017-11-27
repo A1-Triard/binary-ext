@@ -15,8 +15,14 @@ cabal-version: >=1.10
 
 library
   hs-source-dirs: src
-  exposed-modules: Lib
+  exposed-modules: Data.Binary.Get.Ext
   build-depends: base >= 4.7 && < 5
+               , binary
+               , bytestring
+               , conduit
+               , errors
+               , mtl
+               , transformers
   default-extensions: BangPatterns
                     , CPP
                     , DataKinds
@@ -56,52 +62,6 @@ library
                     , ViewPatterns
   include-dirs: include
   ghc-options: -fmax-pmcheck-iterations=100000000 -O2 -Wall -Werror -fno-warn-unused-imports -fprint-potential-instances
-  default-language: Haskell2010
-
-executable test
-  hs-source-dirs: app
-  main-is: Main.hs
-  build-depends: base
-               , binary-te
-  default-extensions: BangPatterns
-                    , CPP
-                    , DataKinds
-                    , DefaultSignatures
-                    , DeriveDataTypeable
-                    , DeriveGeneric
-                    , DeriveFoldable
-                    , DeriveTraversable
-                    , EmptyCase
-                    , EmptyDataDecls
-                    , ExistentialQuantification
-                    , ExplicitForAll
-                    , FlexibleContexts
-                    , FlexibleInstances
-                    , GADTs
-                    , GeneralizedNewtypeDeriving
-                    , KindSignatures
-                    , LambdaCase
-                    , LiberalTypeSynonyms
-                    , MagicHash
-                    , MonadComprehensions
-                    , MultiParamTypeClasses
-                    , MultiWayIf
-                    , NegativeLiterals
-                    , OverloadedStrings
-                    , ParallelListComp
-                    , PatternSynonyms
-                    , RankNTypes
-                    , ScopedTypeVariables
-                    , StandaloneDeriving
-                    , TemplateHaskell
-                    , TransformListComp
-                    , TypeFamilies
-                    , TypeOperators
-                    , UnboxedTuples
-                    , UnicodeSyntax
-                    , ViewPatterns
-  include-dirs: include
-  ghc-options: -threaded -rtsopts -with-rtsopts=-N -fmax-pmcheck-iterations=100000000 -O2 -Wall -Werror -fno-warn-unused-imports -fprint-potential-instances
   default-language: Haskell2010
 
 test-suite binary-te-test
