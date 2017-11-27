@@ -11,6 +11,7 @@ module Data.Binary.Get.Ext
   , onError
   , voidError
   , getWord8
+  , getWord16be
   ) where
 
 #include <haskell>
@@ -51,5 +52,11 @@ onError g e = mapError (const e) g
 voidError :: Monad m => Get e m a -> Get () m a
 voidError = mapError (const ())
 
+voidFromGet :: Monad m => SG.Get a -> Get () m a
+voidFromGet = voidError . fromGet
+
 getWord8 :: Monad m => Get () m Word8
-getWord8 = voidError $ fromGet SG.getWord8
+getWord8 = voidFromGet SG.getWord8
+
+getWord16be :: Monad m => Get () m Word16
+getWord16be = voidFromGet SG.getWord16be
