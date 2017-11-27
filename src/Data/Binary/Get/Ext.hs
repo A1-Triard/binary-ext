@@ -9,6 +9,7 @@ module Data.Binary.Get.Ext
   , fromGet
   , mapError
   , onError
+  , voidError
   , getWord8
   ) where
 
@@ -47,5 +48,8 @@ mapError f g = exceptC $ either (Left . f) Right <$> runExceptC g
 onError :: Monad m => Get () m a -> e -> Get e m a
 onError g e = mapError (const e) g
 
+voidError :: Monad m => Get e m a -> Get () m a
+voidError = mapError (const ())
+
 getWord8 :: Monad m => Get () m Word8
-getWord8 = mapError (const ()) $ fromGet SG.getWord8
+getWord8 = voidError $ fromGet SG.getWord8
