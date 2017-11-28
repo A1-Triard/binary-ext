@@ -2,10 +2,8 @@ module Data.Binary.Get.Ext
   ( ByteOffset
   , Get
   , runGet
-  , bytesReaded
-  , bytesReadedBefore
-  , totalBytesReaded
-  , markAsReaded
+  , bytesRead
+  , markAsRead
   , fromGet
   , mapError
   , onError
@@ -14,35 +12,31 @@ module Data.Binary.Get.Ext
   , voidError
   , getWord8
   , getWord16be
+  , isolateM
+  , isolate
   ) where
 
 #include <haskell>
 
 type ByteOffset = Word64
 
-type Get e m = ConduitM S.ByteString Void (ExceptT e (ReaderT ByteOffset (StateT ByteOffset m)))
+type Get e m = ConduitM S.ByteString Void (ExceptT e (StateT ByteOffset m))
 
 runGet :: Monad m => ByteOffset -> Get e m a -> ConduitM S.ByteString o m (Either e a, ByteOffset)
-runGet bytes_readed_before = mapOutput absurd . runStateC 0 . runReaderC bytes_readed_before . runExceptC
+runGet bytes_read_before = mapOutput absurd . runStateC bytes_read_before . runExceptC
 
-bytesReaded :: Monad m => Get e m ByteOffset
-bytesReaded = lift $ lift $ lift get
+bytesRead :: Monad m => Get e m ByteOffset
+bytesRead = lift $ lift get
 
-bytesReadedBefore :: Monad m => Get e m ByteOffset
-bytesReadedBefore = lift $ lift ask
-
-totalBytesReaded :: Monad m => Get e m ByteOffset
-totalBytesReaded = (+) <$> bytesReadedBefore <*> bytesReaded
-
-markAsReaded :: Monad m => ByteOffset -> Get e m ()
-markAsReaded n = lift $ lift $ lift $ modify' (+ n)
+markAsRead :: Monad m => ByteOffset -> Get e m ()
+markAsRead n = lift $ lift $ modify' (+ n)
 
 fromGet :: Monad m => SG.Get a -> Get String m a
 fromGet g =
   go (SG.runGetIncremental g)
   where
-    go (SG.Done t o r) = leftover t >> markAsReaded (fromIntegral o) >> return r
-    go (SG.Fail t o e) = leftover t >> markAsReaded (fromIntegral o) >> throwError e
+    go (SG.Done t o r) = leftover t >> markAsRead (fromIntegral o) >> return r
+    go (SG.Fail t o e) = leftover t >> markAsRead (fromIntegral o) >> throwError e
     go (SG.Partial c) = go =<< c <$> await
 
 -- | Convert decoder error. If the decoder fails, the given function will be applied
@@ -74,3 +68,24 @@ getWord8 = voidFromGet SG.getWord8
 
 getWord16be :: Monad m => Get () m Word16
 getWord16be = voidFromGet SG.getWord16be
+
+isolateM :: Monad m => ByteOffset -> ConduitM S.ByteString S.ByteString m ByteOffset
+isolateM n0 =
+  go 0
+  where
+    go r = do
+      mi <- await
+      case mi of
+        Nothing -> return r
+        Just i -> do
+          let (!h, !t) = SB.splitAt (fromIntegral $ n0 - r) i
+          let !rn = r + fromIntegral (SB.length h)
+          if SB.null h then return () else yield h
+          if SB.null t then go rn else leftover t >> return rn
+
+isolate :: Monad m => ByteOffset -> Get e m a -> (ByteOffset -> e) -> Get e m a
+isolate n0 g f = do
+  (!consumed, r) <- fuseBoth (isolateM n0) g
+  if consumed < n0
+    then throwError $ f consumed
+    else return r
