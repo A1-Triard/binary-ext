@@ -15,11 +15,12 @@ cabal-version: >=1.10
 
 library
   hs-source-dirs: src
-  exposed-modules: Data.Binary.Get.Ext
+  exposed-modules: Data.Binary.Eat
   build-depends: base >= 4.7 && < 5
                , binary
                , bytestring
                , conduit
+               , data-binary-ieee754
                , errors
                , mtl
                , transformers
