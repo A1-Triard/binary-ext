@@ -73,15 +73,15 @@ isolateM :: Monad m => ByteOffset -> ConduitM S.ByteString S.ByteString m ByteOf
 isolateM n0 =
   go 0
   where
-    go r = do
+    go consumed = do
       mi <- await
       case mi of
-        Nothing -> return r
+        Nothing -> return consumed
         Just i -> do
-          let (!h, !t) = SB.splitAt (fromIntegral $ n0 - r) i
-          let !rn = r + fromIntegral (SB.length h)
+          let (!h, !t) = SB.splitAt (fromIntegral $ n0 - consumed) i
+          let !n = consumed + fromIntegral (SB.length h)
           if SB.null h then return () else yield h
-          if SB.null t then go rn else leftover t >> return rn
+          if SB.null t then go n else leftover t >> return n
 
 isolate :: Monad m => ByteOffset -> Get e m a -> (ByteOffset -> e) -> Get e m a
 isolate n0 g f = do
