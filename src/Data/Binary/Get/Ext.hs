@@ -12,6 +12,15 @@ module Data.Binary.Get.Ext
   , voidError
   , getWord8
   , getWord16be
+  , getWord32be
+  , getWord64be
+  , getWord16le
+  , getWord32le
+  , getWord64le
+  , getWordhost
+  , getWord16host
+  , getWord32host
+  , getWord64host
   , isolateM
   , isolate
   ) where
@@ -68,6 +77,33 @@ getWord8 = voidFromGet SG.getWord8
 
 getWord16be :: Monad m => Get () m Word16
 getWord16be = voidFromGet SG.getWord16be
+
+getWord32be :: Monad m => Get () m Word32
+getWord32be = voidFromGet SG.getWord32be
+
+getWord64be :: Monad m => Get () m Word64
+getWord64be = voidFromGet SG.getWord64be
+
+getWord16le :: Monad m => Get () m Word16
+getWord16le = voidFromGet SG.getWord16le
+
+getWord32le :: Monad m => Get () m Word32
+getWord32le = voidFromGet SG.getWord32le
+
+getWord64le :: Monad m => Get () m Word64
+getWord64le = voidFromGet SG.getWord64le
+
+getWordhost :: Monad m => Get () m Word
+getWordhost = voidFromGet SG.getWordhost
+
+getWord16host :: Monad m => Get () m Word16
+getWord16host = voidFromGet SG.getWord16host
+
+getWord32host :: Monad m => Get () m Word32
+getWord32host = voidFromGet SG.getWord32host
+
+getWord64host :: Monad m => Get () m Word64
+getWord64host = voidFromGet SG.getWord64host
 
 isolateM :: Monad m => ByteOffset -> ConduitM S.ByteString S.ByteString m ByteOffset
 isolateM n0 =
