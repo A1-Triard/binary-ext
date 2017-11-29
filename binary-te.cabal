@@ -2,21 +2,21 @@ name: binary-te
 version: 0.1
 synopsis: An alternate with strong-typed errors for `Data.Binary.Get` monad from `binary` library.
 description: An alternate with strong-typed errors for `Data.Binary.Get` monad from `binary` library.
-homepage: https://github.com/A1-Triard/binary-te#readme
+homepage: https://github.com/A1-Triard/binary-ext#readme
 license: Apache
 license-file: LICENSE
 author: Warlock <internalmike@gmail.com>
 maintainer: Warlock <internalmike@gmail.com>
 copyright: 2017 Warlock <internalmike@gmail.com>
-category: CLI
+category: Data, Parsing
 build-type: Simple
 -- extra-source-files:
 cabal-version: >=1.10
 
 library
   hs-source-dirs: src
-  exposed-modules: Data.Binary.Eat
-                 , Data.Binary.Food
+  exposed-modules: Data.Binary.Nib
+                 , Data.Binary.Bin
   build-depends: base >= 4.7 && < 5
                , binary
                , bytestring
