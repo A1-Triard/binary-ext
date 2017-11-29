@@ -1,5 +1,6 @@
 module Data.Binary.Nib
-  ( Nib
+  ( ByteOffset
+  , Nib
   , runNib
   , bytesNiben
   , markAsNiben
