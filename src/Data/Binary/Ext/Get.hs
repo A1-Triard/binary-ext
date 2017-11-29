@@ -2,14 +2,18 @@ module Data.Binary.Ext.Get
   ( ByteOffset
   , Get
   , runGet
-  , bytesGeten
-  , markAsGeten
+  , bytesRead
+  , markAsRead
   , castGet
   , mapError
   , onError
   , withError
   , ifError
   , voidError
+  , skipM
+  , skip
+  , isolateM
+  , isolate
   , getWord8
   , getWord16be
   , getWord32be
@@ -31,31 +35,29 @@ module Data.Binary.Ext.Get
   , getDoublebe
   , getDoublele
   , getDoublehost
-  , isolateM
-  , isolateN
   ) where
 
 #include <haskell>
 
-import Data.Binary.Get (ByteOffset)
+type ByteOffset = Word64
 
 type Get e m = ConduitM S.ByteString Void (ExceptT e (StateT ByteOffset m))
 
 runGet :: Monad m => ByteOffset -> Get e m a -> ConduitM S.ByteString o m (Either e a, ByteOffset)
 runGet bytes_read_before = mapOutput absurd . runStateC bytes_read_before . runExceptC
 
-bytesGeten :: Monad m => Get e m ByteOffset
-bytesGeten = lift $ lift get
+bytesRead :: Monad m => Get e m ByteOffset
+bytesRead = lift $ lift get
 
-markAsGeten :: Monad m => ByteOffset -> Get e m ()
-markAsGeten n = lift $ lift $ modify' (+ n)
+markAsRead :: Monad m => ByteOffset -> Get e m ()
+markAsRead n = lift $ lift $ modify' (+ n)
 
 castGet :: Monad m => S.Get a -> Get String m a
 castGet g =
   go (S.runGetIncremental g)
   where
-    go (S.Done t o r) = leftover t >> markAsGeten (fromIntegral o) >> return r
-    go (S.Fail t o e) = leftover t >> markAsGeten (fromIntegral o) >> throwError e
+    go (S.Done t o r) = leftover t >> markAsRead (fromIntegral o) >> return r
+    go (S.Fail t o e) = leftover t >> markAsRead (fromIntegral o) >> throwError e
     go (S.Partial c) = go =<< c <$> await
 
 -- | Convert decoder error. If the decoder fails, the given function will be applied
@@ -79,32 +81,46 @@ ifError = flip withError
 voidError :: Monad m => Get e m a -> Get () m a
 voidError = mapError (const ())
 
-{-
-skipN :: Monad m => ByteOffset -> ConduitM S.ByteString o m ()
-skipN n =
+skipM :: Monad m => ByteOffset -> ConduitM S.ByteString o m ByteOffset
+skipM n0 =
   go 0
   where
     go consumed = do
-      mi <- await
--}
+      !mi <- await
+      case mi of
+        Nothing -> return consumed
+        Just !i -> do
+          let !n = consumed + fromIntegral (SB.length i)
+          if n < n0
+            then go n
+            else leftover (SB.drop (fromIntegral $ n0 - consumed) i) >> return n0
+
+skip :: Monad m => ByteOffset -> Get () m ()
+skip n0 = do
+  !consumed <- skipM n0
+  if consumed < n0
+    then throwError ()
+    else return ()
 
 isolateM :: Monad m => ByteOffset -> ConduitM S.ByteString S.ByteString m ByteOffset
 isolateM n0 =
   go 0
   where
     go consumed = do
-      mi <- await
+      !mi <- await
       case mi of
         Nothing -> return consumed
-        Just i -> do
+        Just !i -> do
           let (!h, !t) = SB.splitAt (fromIntegral $ n0 - consumed) i
           let !n = consumed + fromIntegral (SB.length h)
           if SB.null h then return () else yield h
-          if SB.null t then go n else leftover t >> return n
+          if n < n0
+            then go n
+            else leftover t >> return n
 
-isolateN :: Monad m => ByteOffset -> Get e m a -> (ByteOffset -> e) -> Get e m a
-isolateN n0 g f = do
-  (!consumed, r) <- fuseBoth (isolateM n0) g
+isolate :: Monad m => ByteOffset -> Get e m a -> (ByteOffset -> e) -> Get e m a
+isolate n0 g f = do
+  (!consumed, !r) <- fuseBoth (isolateM n0) g
   if consumed < n0
     then throwError $ f consumed
     else return r
