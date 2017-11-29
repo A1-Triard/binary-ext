@@ -15,8 +15,8 @@ cabal-version: >=1.10
 
 library
   hs-source-dirs: src
-  exposed-modules: Data.Binary.Nib
-                 , Data.Binary.Bin
+  exposed-modules: Data.Binary.Ext.Get
+                 , Data.Binary.Ext.Put
   build-depends: base >= 4.7 && < 5
                , binary
                , bytestring
