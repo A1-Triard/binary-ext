@@ -78,11 +78,13 @@ withError e = mapError (const e)
 ifError :: Monad m => Get () m a -> e -> Get e m a
 ifError = flip withError
 
+-- | Map any error into '()'.
 voidError :: Monad m => Get e m a -> Get () m a
 voidError = mapError (const ())
 
+-- | Skip ahead @n@ bytes. Returns number of bytes actually skipped.
 skipM :: Monad m => ByteOffset -> ConduitM S.ByteString o m ByteOffset
-skipM n0 =
+skipM n =
   go 0
   where
     go consumed = do
@@ -90,20 +92,23 @@ skipM n0 =
       case mi of
         Nothing -> return consumed
         Just !i -> do
-          let !n = consumed + fromIntegral (SB.length i)
-          if n < n0
-            then go n
-            else leftover (SB.drop (fromIntegral $ n0 - consumed) i) >> return n0
+          let !next = consumed + fromIntegral (SB.length i)
+          if next < n
+            then go next
+            else leftover (SB.drop (fromIntegral $ n - consumed) i) >> return n
 
+-- | Skip ahead @n@ bytes. Fails if fewer than @n@ bytes are available.
 skip :: Monad m => ByteOffset -> Get () m ()
-skip n0 = do
-  !consumed <- skipM n0
-  if consumed < n0
+skip n = do
+  !consumed <- skipM n
+  if consumed < n
     then throwError ()
     else return ()
 
+-- | Isolate a decoder to operate with a fixed number of bytes.
+-- Returns number of bytes actually consumed.
 isolateM :: Monad m => ByteOffset -> ConduitM S.ByteString S.ByteString m ByteOffset
-isolateM n0 =
+isolateM n =
   go 0
   where
     go consumed = do
@@ -111,17 +116,26 @@ isolateM n0 =
       case mi of
         Nothing -> return consumed
         Just !i -> do
-          let (!h, !t) = SB.splitAt (fromIntegral $ n0 - consumed) i
-          let !n = consumed + fromIntegral (SB.length h)
+          let (!h, !t) = SB.splitAt (fromIntegral $ n - consumed) i
+          let !next = consumed + fromIntegral (SB.length h)
           if SB.null h then return () else yield h
-          if n < n0
-            then go n
+          if next < n
+            then go next
             else leftover t >> return n
 
-isolate :: Monad m => ByteOffset -> Get e m a -> (ByteOffset -> e) -> Get e m a
-isolate n0 g f = do
-  (!consumed, !r) <- fuseBoth (isolateM n0) g
-  if consumed < n0
+-- | Isolate a decoder to operate with a fixed number of bytes, and fail if
+-- fewer bytes were consumed, or more bytes were attempted to be consumed.
+-- If the given decoder fails, 'isolate' will also fail.
+-- Unlike 'Data.Binary.Get.isolate' from binary package,
+-- offset from 'bytesRead' will NOT be relative to the start of 'isolate'.
+isolate :: Monad m
+  => ByteOffset -- ^ The number of bytes that must be consumed
+  -> Get e m a -- ^ The decoder to isolate
+  -> (ByteOffset -> e) -- ^ The error if fewer bytes were consumed
+  -> Get e m a
+isolate n g f = do
+  (!consumed, !r) <- fuseBoth (isolateM n) g
+  if consumed < n
     then throwError $ f consumed
     else return r
 
