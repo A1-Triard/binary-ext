@@ -3,6 +3,7 @@ module Data.Binary.Ext.Get
   , GetC
   , Get
   , runGet
+  , getC
   , bytesRead
   , markAsRead
   , castGet
@@ -43,6 +44,7 @@ module Data.Binary.Ext.Get
 -- | An offset, counted in bytes.
 type ByteOffset = Word64
 
+-- | Internal transformers for 'Get'.
 newtype GetC e m a = C { runC :: ExceptT e (StateT ByteOffset m) a } deriving Generic
 
 instance MonadTrans (GetC e) where
@@ -98,6 +100,10 @@ select u v both = transPipe C $ exceptC $ do
 -- | Run a 'Get' monad, converting all internal transformers into a 'ConduitM' result.
 runGet :: Monad m => ByteOffset -> Get e m a -> ConduitM S.ByteString o m (Either e a, ByteOffset)
 runGet bytes_read_before = mapOutput absurd . runStateC bytes_read_before . runExceptC . transPipe runC
+
+-- | Custom 'Get'.
+getC :: Monad m => (ByteOffset -> ConduitM S.ByteString Void m (Either e a, ByteOffset)) -> Get e m a
+getC = transPipe C . exceptC . stateC
 
 -- | Get the total number of bytes read to this point.
 bytesRead :: Monad m => Get e m ByteOffset
