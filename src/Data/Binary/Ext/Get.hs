@@ -42,7 +42,7 @@ module Data.Binary.Ext.Get
 -- | An offset, counted in bytes.
 type ByteOffset = Word64
 
--- | A 'ConduitM' with internal transforming supposed to a binary deserialization.
+-- | A 'ConduitM' with internal transformers supposed to a binary deserialization.
 type Get e m = ConduitM S.ByteString Void (ExceptT e (StateT ByteOffset m))
 
 trackM :: Monad m => ConduitM S.ByteString S.ByteString (StateT [S.ByteString] m) ()
@@ -60,7 +60,13 @@ track g = do
   ((_, r), consumed) <- runStateC [] $ fuseBothMaybe trackM $ stateC $ \x -> (\t -> (t, x)) <$> g
   return (r, consumed)
 
-select :: Monad m => Get e m a -> Get e m a -> (e -> e -> e) -> Get e m a
+-- | Try run two alternative decoders. Returns result of succeed decoder.
+-- If both decoders fail, return combined error.
+select :: Monad m
+  => Get e m a -- ^ First alternative decoder.
+  -> Get e m a -- ^ Second alternative decoder.
+  -> (e -> e -> e) -- ^ Function combining decoders errors into one error.
+  -> Get e m a
 select u v both = exceptC $ do
   (r1, t1) <- track (runExceptC u)
   case r1 of
