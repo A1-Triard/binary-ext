@@ -73,9 +73,9 @@ type ByteOffset = Word64
 
 -- | Internal transformers for 'Get'.
 newtype GetC
-  e -- ^ Error type
-  m -- ^ Host monad type
-  a -- ^ Decoder result type
+  e -- ^ Error type.
+  m -- ^ Host monad type.
+  a -- ^ Decoder result type.
   = C { runC :: ExceptT e (StateT ByteOffset m) a } deriving Generic
 
 instance MonadTrans (GetC e) where
