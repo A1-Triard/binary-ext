@@ -124,7 +124,6 @@ ifError = flip withError
 voidError :: Monad m => Get e m a -> Get () m a
 voidError = mapError (const ())
 
--- | Skip ahead @n@ bytes. Returns number of bytes actually skipped.
 skipM :: Monad m => ByteOffset -> ConduitM S.ByteString o m ByteOffset
 skipM n =
   go 0
