@@ -71,9 +71,18 @@ test-suite binary-te-test
   type: exitcode-stdio-1.0
   hs-source-dirs: test
   main-is: Spec.hs
+  other-modules: Data.Binary.Get.Ext.Spec
   build-depends: base
                , HUnit
                , binary-te
+               , binary
+               , bytestring
+               , conduit
+               , data-binary-ieee754
+               , errors
+               , exceptions
+               , mtl
+               , transformers
   default-extensions: BangPatterns
                     , CPP
                     , DataKinds
