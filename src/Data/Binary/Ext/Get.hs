@@ -25,6 +25,7 @@ module Data.Binary.Ext.Get
   , select
   , skip
   , isolate
+  , getByteString
   , getWord8
   , getInt8
   , getWord16be
@@ -208,9 +209,24 @@ isolate n g f = do
     then throwError $ f consumed
     else return r
 
+-- | An efficient get method for strict 'ByteString's. Fails if fewer than @n@
+-- bytes are left in the input. If @n <= 0@ then the empty string is returned.
+getByteString :: Monad m => Int -> Get () m S.ByteString
+getByteString n = do
+  go SB.empty
+  where
+    go consumed
+      | SB.length consumed >= n = do
+        let (!h, !t) = SB.splitAt n consumed
+        if SB.null t then return () else leftover t
+        return h
+      | otherwise = do
+        !mi <- await
+        case mi of
+          Nothing -> throwError ()
+          Just !i -> go $ consumed <> i
 
 {-
-    , getByteString
     , getLazyByteString
     , getLazyByteStringNul
     , getRemainingLazyByteString
