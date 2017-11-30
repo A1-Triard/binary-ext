@@ -1,5 +1,6 @@
 module Data.Binary.Ext.Get
   ( ByteOffset
+  , GetC
   , Get
   , runGet
   , bytesRead
@@ -42,8 +43,22 @@ module Data.Binary.Ext.Get
 -- | An offset, counted in bytes.
 type ByteOffset = Word64
 
+newtype GetC e m a = C { runC :: ExceptT e (StateT ByteOffset m) a } deriving Generic
+
+instance MonadTrans (GetC e) where
+  lift = C . lift . lift
+deriving instance Monad m => Monad (GetC e m)
+deriving instance Functor m => Functor (GetC e m)
+deriving instance MonadFix m => MonadFix (GetC e m)
+deriving instance MonadFail m => MonadFail (GetC e m)
+deriving instance (Functor m, Monad m) => Applicative (GetC e m)
+deriving instance MonadIO m => MonadIO (GetC e m)
+deriving instance (Functor m, Monad m, Monoid e) => Alternative (GetC e m)
+deriving instance (Monad m, Monoid e) => MonadPlus (GetC e m)
+deriving instance Monad m => MonadError e (GetC e m)
+
 -- | A 'ConduitM' with internal transformers supposed to a binary deserialization.
-type Get e m = ConduitM S.ByteString Void (ExceptT e (StateT ByteOffset m))
+type Get e m = ConduitM S.ByteString Void (GetC e m)
 
 trackM :: Monad m => ConduitM S.ByteString S.ByteString (StateT [S.ByteString] m) ()
 trackM =
@@ -67,13 +82,13 @@ select :: Monad m
   -> Get e m a -- ^ Second alternative decoder.
   -> (e -> e -> e) -- ^ Function combining decoders errors into one error.
   -> Get e m a
-select u v both = exceptC $ do
-  (r1, t1) <- track (runExceptC u)
+select u v both = transPipe C $ exceptC $ do
+  (r1, t1) <- track (runExceptC $ transPipe runC u)
   case r1 of
     Right a1 -> return $ Right a1
     Left e1 -> do
       mapM_ leftover t1
-      (r2, t2) <- track (runExceptC v)
+      (r2, t2) <- track (runExceptC $ transPipe runC v)
       case r2 of
         Right a2 -> return $ Right a2
         Left e2 -> do
@@ -82,15 +97,15 @@ select u v both = exceptC $ do
 
 -- | Run a 'Get' monad, converting all internal transformers into a 'ConduitM' result.
 runGet :: Monad m => ByteOffset -> Get e m a -> ConduitM S.ByteString o m (Either e a, ByteOffset)
-runGet bytes_read_before = mapOutput absurd . runStateC bytes_read_before . runExceptC
+runGet bytes_read_before = mapOutput absurd . runStateC bytes_read_before . runExceptC . transPipe runC
 
 -- | Get the total number of bytes read to this point.
 bytesRead :: Monad m => Get e m ByteOffset
-bytesRead = lift $ lift get
+bytesRead = lift $ C $ lift get
 
 -- | Move 'bytesRead' counter forward by @n@ bytes.
 markAsRead :: Monad m => ByteOffset -> Get e m ()
-markAsRead n = lift $ lift $ modify' (+ n)
+markAsRead n = lift $ C $ lift $ modify' (+ n)
 
 -- | Run the given 'Data.Binary.Get.Get' monad from binary package
 -- and convert result into 'Get'.
@@ -105,7 +120,7 @@ castGet g =
 -- | Convert decoder error. If the decoder fails, the given function will be applied
 -- to the error message.
 mapError :: Monad m => (e -> e') -> Get e m a -> Get e' m a
-mapError f g = exceptC $ either (Left . f) Right <$> runExceptC g
+mapError f g = transPipe C $ exceptC $ either (Left . f) Right <$> runExceptC (transPipe runC g)
 
 -- | 'onError' is 'mapError' with its arguments flipped.
 onError :: Monad m => Get e m a -> (e -> e') -> Get e' m a
