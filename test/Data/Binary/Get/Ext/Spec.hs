@@ -21,11 +21,28 @@ module Data.Binary.Get.Ext.Spec
 #define TESTS
 #include <haskell>
 
+import Data.Binary.Ext.Get
 
 tests :: Test
 tests = TestList
   [ TestCase getBytes
   ]
 
+testInput1 :: [String]
+testInput1 =
+  [ "\x12\x13\x14"
+  , "\x15\x18\xF3"
+  ]
+
+get1 :: Monad m => Get Word16 () m ()
+get1 = do
+  yield =<< getWord16le
+  yield =<< getWord16le
+  yield =<< getWord16be
+
 getBytes :: Assertion
-getBytes = return ()
+getBytes = do
+  let ((!e, !c), !r) = runIdentity $ N.yieldMany (SC.pack <$> testInput1) $$ (runGet 0 get1 `fuseBoth` N.sinkList)
+  assertEqual "" (Right ()) e
+  assertEqual "" [0x13 `shiftL` 8 .|. 0x12, 0x15 `shiftL` 8 .|. 0x14, 0x18 `shiftL` 8 .|. 0xF3] r
+  assertEqual "" 6 c

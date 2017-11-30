@@ -21,6 +21,7 @@ library
                , binary
                , bytestring
                , conduit
+               , conduit-combinators
                , data-binary-ieee754
                , errors
                , exceptions
@@ -78,6 +79,7 @@ test-suite binary-te-test
                , binary
                , bytestring
                , conduit
+               , conduit-combinators
                , data-binary-ieee754
                , errors
                , exceptions
