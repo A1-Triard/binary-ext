@@ -25,24 +25,42 @@ import Data.Binary.Ext.Get
 
 tests :: Test
 tests = TestList
-  [ TestCase getBytes
+  [ TestCase getBytes1
+  , TestCase getBytes2
   ]
 
 testInput1 :: [String]
 testInput1 =
   [ "\x12\x13\x14"
   , "\x15\x18\xF3"
+  , ""
   ]
 
-get1 :: Monad m => Get Word16 () m ()
-get1 = do
-  yield =<< getWord16le
-  yield =<< getWord16le
-  yield =<< getWord16be
+testInput2 :: [String]
+testInput2 =
+  [ "\x12\x13\x14"
+  , "\x15\x18\xF3"
+  , "\0"
+  ]
 
-getBytes :: Assertion
-getBytes = do
+get1 :: Monad m => Get Word16 Bool m ()
+get1 = do
+  yield =<< getWord16le `ifError` False
+  yield =<< getWord16le `ifError` False
+  yield =<< getWord16be `ifError` False
+  eof <- N.nullE
+  if eof then return () else throwError True
+
+getBytes1 :: Assertion
+getBytes1 = do
   let ((!e, !c), !r) = runIdentity $ N.yieldMany (SC.pack <$> testInput1) $$ (runGet 0 get1 `fuseBoth` N.sinkList)
   assertEqual "" (Right ()) e
+  assertEqual "" [0x13 `shiftL` 8 .|. 0x12, 0x15 `shiftL` 8 .|. 0x14, 0x18 `shiftL` 8 .|. 0xF3] r
+  assertEqual "" 6 c
+
+getBytes2 :: Assertion
+getBytes2 = do
+  let ((!e, !c), !r) = runIdentity $ N.yieldMany (SC.pack <$> testInput2) $$ (runGet 0 get1 `fuseBoth` N.sinkList)
+  assertEqual "" (Left True) e
   assertEqual "" [0x13 `shiftL` 8 .|. 0x12, 0x15 `shiftL` 8 .|. 0x14, 0x18 `shiftL` 8 .|. 0xF3] r
   assertEqual "" 6 c

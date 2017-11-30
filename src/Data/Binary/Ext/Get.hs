@@ -76,7 +76,7 @@ newtype GetC
   e -- ^ Error type.
   m -- ^ Host monad type.
   a -- ^ Decoder result type.
-  = C { runC :: ExceptT e (StateT ByteOffset m) a } deriving Generic
+  = C { runC :: ExceptT e (StateT ByteOffset m) a }
 
 instance MonadTrans (GetC e) where
   lift = C . lift . lift
