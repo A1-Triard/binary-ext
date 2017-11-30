@@ -23,6 +23,7 @@ library
                , conduit
                , data-binary-ieee754
                , errors
+               , exceptions
                , mtl
                , transformers
   default-extensions: BangPatterns

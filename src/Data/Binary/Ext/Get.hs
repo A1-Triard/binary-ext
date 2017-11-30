@@ -10,11 +10,11 @@ module Data.Binary.Ext.Get
   , withError
   , ifError
   , voidError
-  , skipM
+  , select
   , skip
-  , isolateM
   , isolate
   , getWord8
+  , getInt8
   , getWord16be
   , getWord32be
   , getWord64be
@@ -45,6 +45,35 @@ type ByteOffset = Word64
 -- | A 'ConduitM' with internal transforming supposed to a binary deserialization.
 type Get e m = ConduitM S.ByteString Void (ExceptT e (StateT ByteOffset m))
 
+trackM :: Monad m => ConduitM S.ByteString S.ByteString (StateT [S.ByteString] m) ()
+trackM =
+  go
+  where
+  go = do
+    mi <- await
+    case mi of
+      Nothing -> return ()
+      Just i -> lift (modify' (\t -> i : t)) >> yield i
+
+track :: Monad m => ConduitM S.ByteString o m a -> ConduitM S.ByteString o m (a, [S.ByteString])
+track g = do
+  ((_, r), consumed) <- runStateC [] $ fuseBothMaybe trackM $ stateC $ \x -> (\t -> (t, x)) <$> g
+  return (r, consumed)
+
+select :: Monad m => Get e m a -> Get e m a -> (e -> e -> e) -> Get e m a
+select u v both = exceptC $ do
+  (r1, t1) <- track (runExceptC u)
+  case r1 of
+    Right a1 -> return $ Right a1
+    Left e1 -> do
+      mapM_ leftover t1
+      (r2, t2) <- track (runExceptC v)
+      case r2 of
+        Right a2 -> return $ Right a2
+        Left e2 -> do
+          mapM_ leftover t2
+          return $ Left $ both e1 e2
+
 -- | Run a 'Get' monad, converting all internal transformers into a 'ConduitM' result.
 runGet :: Monad m => ByteOffset -> Get e m a -> ConduitM S.ByteString o m (Either e a, ByteOffset)
 runGet bytes_read_before = mapOutput absurd . runStateC bytes_read_before . runExceptC
@@ -63,9 +92,9 @@ castGet :: Monad m => S.Get a -> Get String m a
 castGet g =
   go (S.runGetIncremental g)
   where
-    go (S.Done t o r) = leftover t >> markAsRead (fromIntegral o) >> return r
-    go (S.Fail t o e) = leftover t >> markAsRead (fromIntegral o) >> throwError e
-    go (S.Partial c) = go =<< c <$> await
+    go (S.Done t !o !r) = leftover t >> markAsRead (fromIntegral o) >> return r
+    go (S.Fail t !o !e) = leftover t >> markAsRead (fromIntegral o) >> throwError e
+    go (S.Partial !c) = go =<< c <$> await
 
 -- | Convert decoder error. If the decoder fails, the given function will be applied
 -- to the error message.
@@ -112,8 +141,6 @@ skip n = do
     then throwError ()
     else return ()
 
--- | Isolate a decoder to operate with a fixed number of bytes.
--- Returns number of bytes actually consumed.
 isolateM :: Monad m => ByteOffset -> ConduitM S.ByteString S.ByteString m ByteOffset
 isolateM n =
   go 0
@@ -145,6 +172,15 @@ isolate n g f = do
     then throwError $ f consumed
     else return r
 
+
+{-
+    , getByteString
+    , getLazyByteString
+    , getLazyByteStringNul
+    , getRemainingLazyByteString
+-}
+
+
 voidCastGet :: Monad m => S.Get a -> Get () m a
 voidCastGet = voidError . castGet
 
@@ -153,7 +189,7 @@ getWord8 :: Monad m => Get () m Word8
 getWord8 = voidCastGet S.getWord8
 
 -- | Read a 'Int8' from the monad state.
-getInt8 :: Get () Int8
+getInt8 :: Monad m => Get () m Int8
 getInt8 = voidCastGet S.getInt8
 
 -- | Read a 'Word16' in big endian format.
