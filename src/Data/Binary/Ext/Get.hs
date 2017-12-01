@@ -93,6 +93,10 @@ deriving instance Monad m => MonadError e (GetC e m)
 -- | A 'ConduitM' with internal transformers supposed to a binary deserialization.
 type Get o e m = ConduitM S.ByteString o (GetC e m)
 
+instance (Monoid e, Monad m) => Alternative (Get o e m) where
+  empty = throwError mempty
+  a <|> b = select a b mappend
+
 trackM :: Monad m => ConduitM S.ByteString S.ByteString (StateT [S.ByteString] m) ()
 trackM =
   go
