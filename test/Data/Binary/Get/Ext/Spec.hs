@@ -27,6 +27,7 @@ tests :: Test
 tests = TestList
   [ TestCase getBytes1
   , TestCase getBytes2
+  , TestCase testSkip
   ]
 
 testInput1 :: [String]
@@ -43,6 +44,13 @@ testInput2 =
   , "\0"
   ]
 
+testInput3 :: [String]
+testInput3 =
+  [ "\x12\x13"
+  , "\x15\x18\xF3"
+  , "\0"
+  ]
+
 get1 :: Monad m => Get Word16 Bool m ()
 get1 = do
   yield =<< getWord16le `ifError` False
@@ -50,6 +58,11 @@ get1 = do
   yield =<< getWord16be `ifError` False
   eof <- N.nullE
   if eof then return () else throwError True
+
+get2 :: Monad m => Get o () m ByteOffset
+get2 = do
+  skip 3
+  bytesRead
 
 getBytes1 :: Assertion
 getBytes1 = do
@@ -64,3 +77,9 @@ getBytes2 = do
   assertEqual "" (Left True) e
   assertEqual "" [0x13 `shiftL` 8 .|. 0x12, 0x15 `shiftL` 8 .|. 0x14, 0x18 `shiftL` 8 .|. 0xF3] r
   assertEqual "" 6 c
+
+testSkip :: Assertion
+testSkip = do
+  let (!e, !c) = runIdentity $ N.yieldMany (SC.pack <$> testInput3) $$ runGet 4 get2
+  assertEqual "" (Right 7) e
+  assertEqual "" 7 c

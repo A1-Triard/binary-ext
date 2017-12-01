@@ -191,6 +191,7 @@ skipM n =
 skip :: Monad m => ByteOffset -> Get o () m ()
 skip n = do
   !consumed <- skipM n
+  markAsRead consumed
   if consumed < n
     then throwError ()
     else return ()
