@@ -38,7 +38,6 @@ module Data.Binary.Ext.Get
   , withError
   , ifError
   , voidError
-  , select
   , skip
   , isolate
   , getByteString
@@ -112,13 +111,7 @@ track g = do
   ((_, r), consumed) <- runStateC [] $ fuseBothMaybe trackM $ stateC $ \x -> (\t -> (t, x)) <$> g
   return (r, consumed)
 
--- | Try run two alternative decoders. Returns result of succeed decoder.
--- If both decoders fail, return combined error.
-select :: Monad m
-  => Get o e m a -- ^ First alternative decoder.
-  -> Get o e m a -- ^ Second alternative decoder.
-  -> (e -> e -> e) -- ^ Function combining decoders errors into one error.
-  -> Get o e m a
+select :: Monad m => Get o e m a -> Get o e m a -> (e -> e -> e) -> Get o e m a
 select u v both = transPipe C $ exceptC $ do
   (r1, t1) <- track (runExceptC $ transPipe runC u)
   case r1 of
