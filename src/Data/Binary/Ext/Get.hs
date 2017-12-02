@@ -79,6 +79,7 @@ newtype GetC
 
 instance MonadTrans (GetC e) where
   lift = C . lift . lift
+  {-# INLINE lift #-}
 deriving instance Monad m => Monad (GetC e m)
 deriving instance Functor m => Functor (GetC e m)
 deriving instance MonadFix m => MonadFix (GetC e m)
@@ -113,7 +114,9 @@ type Get o e m = ConduitM Inp o (GetC e m)
 
 instance (Monoid e, Monad m) => Alternative (Get o e m) where
   empty = throwError mempty
+  {-# INLINE empty #-}
   a <|> b = select a b mappend
+  {-# INLINE (<|>) #-}
 
 trackM :: Monad m => ConduitM Inp Inp (StateT [Inp] m) ()
 trackM =
