@@ -66,20 +66,20 @@ get2 = do
 
 getBytes1 :: Assertion
 getBytes1 = do
-  let ((!e, !c), !r) = runIdentity $ N.yieldMany (SC.pack <$> testInput1) $$ (runGet 0 get1 `fuseBoth` N.sinkList)
+  let ((!e, !c), !r) = runIdentity $ N.yieldMany (SC.pack <$> testInput1) $$ (runGet get1 0 `fuseBoth` N.sinkList)
   assertEqual "" (Right ()) e
   assertEqual "" [0x13 `shiftL` 8 .|. 0x12, 0x15 `shiftL` 8 .|. 0x14, 0x18 `shiftL` 8 .|. 0xF3] r
   assertEqual "" 6 c
 
 getBytes2 :: Assertion
 getBytes2 = do
-  let ((!e, !c), !r) = runIdentity $ N.yieldMany (SC.pack <$> testInput2) $$ (runGet 0 get1 `fuseBoth` N.sinkList)
+  let ((!e, !c), !r) = runIdentity $ N.yieldMany (SC.pack <$> testInput2) $$ (runGet get1 0 `fuseBoth` N.sinkList)
   assertEqual "" (Left True) e
   assertEqual "" [0x13 `shiftL` 8 .|. 0x12, 0x15 `shiftL` 8 .|. 0x14, 0x18 `shiftL` 8 .|. 0xF3] r
   assertEqual "" 6 c
 
 testSkip :: Assertion
 testSkip = do
-  let (!e, !c) = runIdentity $ N.yieldMany (SC.pack <$> testInput3) $$ runGet 4 get2
+  let (!e, !c) = runIdentity $ N.yieldMany (SC.pack <$> testInput3) $$ runGet get2 4
   assertEqual "" (Right 7) e
   assertEqual "" 7 c

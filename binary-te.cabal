@@ -23,8 +23,10 @@ library
                , conduit
                , conduit-combinators
                , data-binary-ieee754
+               , deepseq
                , errors
                , exceptions
+               , mono-traversable
                , mtl
                , transformers
   default-extensions: BangPatterns
@@ -81,8 +83,10 @@ test-suite binary-te-test
                , conduit
                , conduit-combinators
                , data-binary-ieee754
+               , deepseq
                , errors
                , exceptions
+               , mono-traversable
                , mtl
                , transformers
   default-extensions: BangPatterns

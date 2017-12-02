@@ -89,14 +89,33 @@ deriving instance (Functor m, Monad m, Monoid e) => Alternative (GetC e m)
 deriving instance (Monad m, Monoid e) => MonadPlus (GetC e m)
 deriving instance Monad m => MonadError e (GetC e m)
 
+newtype Inp = Inp { bs :: S.ByteString }
+type instance Element Inp = Word8
+deriving instance Eq Inp
+deriving instance Data Inp
+deriving instance Ord Inp
+deriving instance Read Inp
+deriving instance Show Inp
+deriving instance IsString Inp
+deriving instance Semigroup Inp
+deriving instance Monoid Inp
+deriving instance NFData Inp
+deriving instance MonoFunctor Inp
+deriving instance MonoFoldable Inp
+instance MonoTraversable Inp where
+  otraverse f = fmap Inp . otraverse f . bs
+  {-# INLINE otraverse #-}
+deriving instance MonoPointed Inp
+deriving instance GrowingAppend Inp
+
 -- | A 'ConduitM' with internal transformers supposed to a binary deserialization.
-type Get o e m = ConduitM S.ByteString o (GetC e m)
+type Get o e m = ConduitM Inp o (GetC e m)
 
 instance (Monoid e, Monad m) => Alternative (Get o e m) where
   empty = throwError mempty
   a <|> b = select a b mappend
 
-trackM :: Monad m => ConduitM S.ByteString S.ByteString (StateT [S.ByteString] m) ()
+trackM :: Monad m => ConduitM Inp Inp (StateT [Inp] m) ()
 trackM =
   go
   where
@@ -106,7 +125,7 @@ trackM =
       Nothing -> return ()
       Just i -> lift (modify' (\t -> i : t)) >> yield i
 
-track :: Monad m => ConduitM S.ByteString o m a -> ConduitM S.ByteString o m (a, [S.ByteString])
+track :: Monad m => ConduitM Inp o m a -> ConduitM Inp o m (a, [Inp])
 track g = do
   ((_, r), consumed) <- runStateC [] $ fuseBothMaybe trackM $ stateC $ \x -> (\t -> (t, x)) <$> g
   return (r, consumed)
@@ -126,12 +145,12 @@ select u v both = transPipe C $ exceptC $ do
           return $ Left $ both e1 e2
 
 -- | Run a 'Get' monad, converting all internal transformers into a 'ConduitM' result.
-runGet :: Monad m => ByteOffset -> Get o e m a -> ConduitM S.ByteString o m (Either e a, ByteOffset)
-runGet bytes_read_before = runStateC bytes_read_before . runExceptC . transPipe runC
+runGet :: Monad m => Get o e m a -> ByteOffset -> ConduitM S.ByteString o m (Either e a, ByteOffset)
+runGet g bytes_read_before = runStateC bytes_read_before $ runExceptC $ transPipe runC $ mapInput Inp (Just . bs) g
 
 -- | Custom 'Get'.
 getC :: Monad m => (ByteOffset -> ConduitM S.ByteString o m (Either e a, ByteOffset)) -> Get o e m a
-getC = transPipe C . exceptC . stateC
+getC = mapInput bs (Just . Inp) . transPipe C . exceptC . stateC
 
 -- | Get the total number of bytes read to this point.
 bytesRead :: Monad m => Get o e m ByteOffset
@@ -147,9 +166,9 @@ castGet :: Monad m => S.Get a -> Get o String m a
 castGet g =
   go (S.runGetIncremental g)
   where
-    go (S.Done t !o !r) = leftover t >> markAsRead (fromIntegral o) >> return r
-    go (S.Fail t !o !e) = leftover t >> markAsRead (fromIntegral o) >> throwError e
-    go (S.Partial !c) = go =<< c <$> await
+    go (S.Done t !o !r) = leftover (Inp t) >> markAsRead (fromIntegral o) >> return r
+    go (S.Fail t !o !e) = leftover (Inp t) >> markAsRead (fromIntegral o) >> throwError e
+    go (S.Partial !c) = go =<< (c . (bs <$>)) <$> await
 
 -- | Convert decoder error. If the decoder fails, the given function will be applied
 -- to the error message.
@@ -173,7 +192,7 @@ ifError = flip withError
 voidError :: Monad m => Get o e m a -> Get o () m a
 voidError = mapError (const ())
 
-skipM :: Monad m => ByteOffset -> ConduitM S.ByteString o m ByteOffset
+skipM :: Monad m => ByteOffset -> ConduitM Inp o m ByteOffset
 skipM n =
   go 0
   where
@@ -181,11 +200,11 @@ skipM n =
       !mi <- await
       case mi of
         Nothing -> return consumed
-        Just !i -> do
+        Just (Inp !i) -> do
           let !next = consumed + fromIntegral (SB.length i)
           if next < n
             then go next
-            else leftover (SB.drop (fromIntegral $ n - consumed) i) >> return n
+            else leftover (Inp $ SB.drop (fromIntegral $ n - consumed) i) >> return n
 
 -- | Skip ahead @n@ bytes. Fails if fewer than @n@ bytes are available.
 skip :: Monad m => ByteOffset -> Get o () m ()
@@ -196,7 +215,7 @@ skip n = do
     then throwError ()
     else return ()
 
-isolateM :: Monad m => ByteOffset -> ConduitM S.ByteString S.ByteString m ByteOffset
+isolateM :: Monad m => ByteOffset -> ConduitM Inp Inp m ByteOffset
 isolateM n =
   go 0
   where
@@ -204,13 +223,13 @@ isolateM n =
       !mi <- await
       case mi of
         Nothing -> return consumed
-        Just !i -> do
+        Just (Inp !i) -> do
           let (!h, !t) = SB.splitAt (fromIntegral $ n - consumed) i
           let !next = consumed + fromIntegral (SB.length h)
-          if SB.null h then return () else yield h
+          if SB.null h then return () else yield (Inp h)
           if next < n
             then go next
-            else leftover t >> return n
+            else leftover (Inp t) >> return n
 
 -- | Isolate a decoder to operate with a fixed number of bytes, and fail if
 -- fewer bytes were consumed, or more bytes were attempted to be consumed.
@@ -236,13 +255,13 @@ getByteString n = do
     go consumed
       | SB.length consumed >= n = do
         let (!h, !t) = SB.splitAt n consumed
-        if SB.null t then return () else leftover t
+        if SB.null t then return () else leftover (Inp t)
         return h
       | otherwise = do
         !mi <- await
         case mi of
           Nothing -> throwError ()
-          Just !i -> go $ consumed <> i
+          Just (Inp !i) -> go $ consumed <> i
 
 {-
     , getLazyByteString
