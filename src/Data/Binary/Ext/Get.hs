@@ -48,7 +48,7 @@ module Data.Binary.Ext.Get
   , ifError
   , voidError
   , skip
---  , isolate
+  , isolate
   , getByteString
   , getWord8
   , getInt8
@@ -150,24 +150,6 @@ skip n = do
             else ungetInp (SB.drop (fromIntegral $ n - consumed) i) >> return n
 {-# INLINE skip #-}
 
-{-
-isolateM :: Monad m => ByteOffset -> ConduitM GetInp GetInp m ByteOffset
-isolateM n =
-  go 0
-  where
-    go consumed = do
-      !mi <- await
-      case mi of
-        Nothing -> return consumed
-        Just (GetInp !i) -> do
-          let (!h, !t) = SB.splitAt (fromIntegral $ n - consumed) i
-          let !next = consumed + fromIntegral (SB.length h)
-          if SB.null h then return () else yield (GetInp h)
-          if next < n
-            then go next
-            else leftover (GetInp t) >> return n
-{-# INLINE isolateM #-}
-
 -- | Isolate a decoder to operate with a fixed number of bytes, and fail if
 -- fewer bytes were consumed, or more bytes were attempted to be consumed.
 -- Unlike 'Data.Binary.Get.isolate' from binary package,
@@ -178,12 +160,23 @@ isolate :: Monad m
   -> (ByteOffset -> e) -- ^ The error if fewer bytes were consumed
   -> Get o e m a
 isolate n g f = do
-  (!consumed, !r) <- fuseBoth (isolateM n) g
+  (!consumed, !r) <- fuseBoth (go 0) g
   if consumed < n
     then throwError $ f consumed
     else return r
+  where
+    go consumed = do
+      !mi <- getInp
+      case mi of
+        Nothing -> return consumed
+        Just !i -> do
+          let (!h, !t) = SB.splitAt (fromIntegral $ n - consumed) i
+          let !next = consumed + fromIntegral (SB.length h)
+          if SB.null h then return () else ungetInp h
+          if next < n
+            then go next
+            else ungetInp t >> return n
 {-# INLINE isolate #-}
--}
 
 -- | An efficient get method for strict 'ByteString's. Fails if fewer than @n@
 -- bytes are left in the input. If @n <= 0@ then the empty string is returned.
