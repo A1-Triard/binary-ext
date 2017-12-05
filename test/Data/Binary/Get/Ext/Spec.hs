@@ -27,59 +27,95 @@ tests :: Test
 tests = TestList
   [ TestCase getBytes1
   , TestCase getBytes2
-  , TestCase testSkip
+--  , TestCase testSkip
+  , TestCase eofError
+  , TestCase eofOrNotEof
   ]
 
-testInput1 :: [String]
+testInput1 :: [S.ByteString]
 testInput1 =
   [ "\x12\x13\x14"
   , "\x15\x18\xF3"
   , ""
   ]
 
-testInput2 :: [String]
+testInput2 :: [S.ByteString]
 testInput2 =
   [ "\x12\x13\x14"
   , "\x15\x18\xF3"
   , "\0"
   ]
 
-testInput3 :: [String]
+{-
+testInput3 :: [S.ByteString]
 testInput3 =
   [ "\x12\x13"
   , "\x15\x18\xF3"
   , "\0"
   ]
+-}
+
+testInput4 :: [S.ByteString]
+testInput4 =
+  [ "AB"
+  , "C"
+  ]
+
+ensureEof :: Monad m => e -> Get o e m ()
+ensureEof e = do
+  eof <- N.nullE
+  if eof then return () else throwError e
 
 get1 :: Monad m => Get Word16 Bool m ()
 get1 = do
   yield =<< getWord16le `ifError` False
   yield =<< getWord16le `ifError` False
   yield =<< getWord16be `ifError` False
-  eof <- N.nullE
-  if eof then return () else throwError True
+  ensureEof True
 
+{-
 get2 :: Monad m => Get o () m ByteOffset
 get2 = do
   skip 3
   bytesRead
+-}
+
+getTailBytes :: Monad m => Get o () m S.ByteString
+getTailBytes = do
+  r <- getByteString 3
+  ensureEof ()
+  return r
 
 getBytes1 :: Assertion
 getBytes1 = do
-  let ((!e, !c), !r) = runIdentity $ N.yieldMany (SC.pack <$> testInput1) $$ (runGet get1 0 `fuseBoth` N.sinkList)
+  let ((!e, !c), !r) = runIdentity $ N.yieldMany testInput1 $$ (runGet get1 0 `fuseBoth` N.sinkList)
   assertEqual "" (Right ()) e
   assertEqual "" [0x13 `shiftL` 8 .|. 0x12, 0x15 `shiftL` 8 .|. 0x14, 0x18 `shiftL` 8 .|. 0xF3] r
   assertEqual "" 6 c
 
 getBytes2 :: Assertion
 getBytes2 = do
-  let ((!e, !c), !r) = runIdentity $ N.yieldMany (SC.pack <$> testInput2) $$ (runGet get1 0 `fuseBoth` N.sinkList)
+  let ((!e, !c), !r) = runIdentity $ N.yieldMany testInput2 $$ (runGet get1 0 `fuseBoth` N.sinkList)
   assertEqual "" (Left True) e
   assertEqual "" [0x13 `shiftL` 8 .|. 0x12, 0x15 `shiftL` 8 .|. 0x14, 0x18 `shiftL` 8 .|. 0xF3] r
   assertEqual "" 6 c
 
+{-
 testSkip :: Assertion
 testSkip = do
-  let (!e, !c) = runIdentity $ N.yieldMany (SC.pack <$> testInput3) $$ runGet get2 4
+  let (!e, !c) = runIdentity $ N.yieldMany testInput3 $$ runGet get2 4
   assertEqual "" (Right 7) e
   assertEqual "" 7 c
+-}
+
+eofError :: Assertion
+eofError = do
+  let (!e, !c) = runIdentity $ N.yieldMany testInput4 $$ runGet getInt64host 0
+  assertEqual "" (Left ()) e
+  assertEqual "" 0 c
+
+eofOrNotEof :: Assertion
+eofOrNotEof = do
+  let (!e, !c) = runIdentity $ N.yieldMany testInput4 $$ runGet (Right <$> getInt64host <|> Left <$> getTailBytes) 0
+  assertEqual "" (Right $ Left "ABC") e
+  assertEqual "" 3 c

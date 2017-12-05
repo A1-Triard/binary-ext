@@ -26,20 +26,27 @@
 
 module Data.Binary.Ext.Get
   ( ByteOffset
+  , GetState
+  , getStateBytesRead
+  , trackGetAwait
+  , trackGetLeftover
   , GetC
+  , GetInp
   , Get
   , runGet
+  , runGetC
   , getC
   , bytesRead
-  , markAsRead
+  , getInp
+  , ungetInp
   , castGet
   , mapError
   , onError
   , withError
   , ifError
   , voidError
-  , skip
-  , isolate
+--  , skip
+--  , isolate
   , getByteString
   , getWord8
   , getInt8
@@ -70,12 +77,28 @@ module Data.Binary.Ext.Get
 -- | An offset, counted in bytes.
 type ByteOffset = Word64
 
+data GetState = GetState { getStateBytesRead :: ByteOffset, tracking :: Maybe ByteString }
+
+trackGetAwait :: S.ByteString -> GetState -> GetState
+trackGetAwait inp s = GetState
+  { getStateBytesRead = getStateBytesRead s + fromIntegral (SB.length inp)
+  , tracking = B.append (B.fromStrict inp) <$> tracking s
+  }
+{-# INLINE trackGetAwait #-}
+
+trackGetLeftover :: Int64 -> GetState -> GetState
+trackGetLeftover bytes_count s = GetState
+  { getStateBytesRead = getStateBytesRead s - fromIntegral bytes_count
+  , tracking = B.drop bytes_count <$> tracking s
+  }
+{-# INLINE trackGetLeftover #-}
+
 -- | Internal transformers for 'Get'.
 newtype GetC
   e -- ^ Error type.
   m -- ^ Host monad type.
   a -- ^ Decoder result type.
-  = C { runC :: ExceptT e (StateT ByteOffset m) a }
+  = C { runC :: ExceptT e (StateT GetState m) a }
 
 instance MonadTrans (GetC e) where
   lift = C . lift . lift
@@ -90,85 +113,82 @@ deriving instance (Functor m, Monad m, Monoid e) => Alternative (GetC e m)
 deriving instance (Monad m, Monoid e) => MonadPlus (GetC e m)
 deriving instance Monad m => MonadError e (GetC e m)
 
-newtype Inp = Inp { bs :: S.ByteString }
-type instance Element Inp = Word8
-deriving instance Eq Inp
-deriving instance Data Inp
-deriving instance Ord Inp
-deriving instance Read Inp
-deriving instance Show Inp
-deriving instance IsString Inp
-deriving instance Semigroup Inp
-deriving instance Monoid Inp
-deriving instance NFData Inp
-deriving instance MonoFunctor Inp
-deriving instance MonoFoldable Inp
-instance MonoTraversable Inp where
-  otraverse f = fmap Inp . otraverse f . bs
+newtype GetInp = GetInp { bs :: S.ByteString }
+type instance Element GetInp = Word8
+deriving instance Eq GetInp
+deriving instance Data GetInp
+deriving instance Ord GetInp
+deriving instance Read GetInp
+deriving instance Show GetInp
+deriving instance IsString GetInp
+deriving instance Semigroup GetInp
+deriving instance Monoid GetInp
+deriving instance NFData GetInp
+deriving instance MonoFunctor GetInp
+deriving instance MonoFoldable GetInp
+instance MonoTraversable GetInp where
+  otraverse f = fmap GetInp . otraverse f . bs
   {-# INLINE otraverse #-}
-deriving instance MonoPointed Inp
-deriving instance GrowingAppend Inp
+deriving instance MonoPointed GetInp
+deriving instance GrowingAppend GetInp
 
 -- | A 'ConduitM' with internal transformers supposed to a binary deserialization.
-type Get o e m = ConduitM Inp o (GetC e m)
+type Get o e m = ConduitM GetInp o (GetC e m)
 
 instance (Monoid e, Monad m) => Alternative (Get o e m) where
   empty = throwError mempty
   {-# INLINE empty #-}
-  a <|> b = select a b mappend
+  a <|> b = catchError (track a) $ \ea -> catchError (track b) $ \eb -> throwError (ea `mappend` eb)
   {-# INLINE (<|>) #-}
 
-trackM :: Monad m => ConduitM Inp Inp (StateT [Inp] m) ()
-trackM =
-  go
-  where
-  go = do
-    mi <- await
-    case mi of
-      Nothing -> return ()
-      Just i -> lift (modify' (\t -> i : t)) >> yield i
-{-# INLINE trackM #-}
-
-track :: Monad m => ConduitM Inp o m a -> ConduitM Inp o m (a, [Inp])
-track g = do
-  ((_, r), consumed) <- runStateC [] $ fuseBothMaybe trackM $ stateC $ \x -> (\t -> (t, x)) <$> g
-  return (r, consumed)
+track :: Monad m => Get o e m a -> Get o e m a
+track g = getC $ \c -> do
+  (!r, !f) <- runGetC g $ GetState
+    { getStateBytesRead = getStateBytesRead c
+    , tracking = Just B.empty
+    }
+  let !tracking_f = fromMaybe (error "Data.Binary.Ext.Get.track") $ tracking f
+  if isRight r
+    then  return (r, GetState { getStateBytesRead = getStateBytesRead f, tracking = B.append tracking_f <$> tracking c })
+    else forM_ (B.toChunks tracking_f) leftover >> return (r, c)
 {-# INLINE track #-}
-
-select :: Monad m => Get o e m a -> Get o e m a -> (e -> e -> e) -> Get o e m a
-select u v both = transPipe C $ exceptC $ do
-  (r1, t1) <- track (runExceptC $ transPipe runC u)
-  case r1 of
-    Right a1 -> return $ Right a1
-    Left e1 -> do
-      mapM_ leftover t1
-      (r2, t2) <- track (runExceptC $ transPipe runC v)
-      case r2 of
-        Right a2 -> return $ Right a2
-        Left e2 -> do
-          mapM_ leftover t2
-          return $ Left $ both e1 e2
-{-# INLINE select #-}
 
 -- | Run a 'Get' monad, converting all internal transformers into a 'ConduitM' result.
 runGet :: Monad m => Get o e m a -> ByteOffset -> ConduitM S.ByteString o m (Either e a, ByteOffset)
-runGet g bytes_read_before = runStateC bytes_read_before $ runExceptC $ transPipe runC $ mapInput Inp (Just . bs) g
+runGet g bytes_read_before = (\(!r, !s) -> (r, getStateBytesRead s)) <$> runGetC g (GetState bytes_read_before Nothing)
+
 {-# INLINE runGet #-}
 
+-- | Run a 'Get' monad, converting all internal transformers into a 'ConduitM' result.
+runGetC :: Monad m => Get o e m a -> GetState -> ConduitM S.ByteString o m (Either e a, GetState)
+runGetC g state_before = runStateC state_before $ runExceptC $ transPipe runC $ mapInput GetInp (Just . bs) g
+{-# INLINE runGetC #-}
+
 -- | Custom 'Get'.
-getC :: Monad m => (ByteOffset -> ConduitM S.ByteString o m (Either e a, ByteOffset)) -> Get o e m a
-getC = mapInput bs (Just . Inp) . transPipe C . exceptC . stateC
+getC :: Monad m => (GetState -> ConduitM S.ByteString o m (Either e a, GetState)) -> Get o e m a
+getC = mapInput bs (Just . GetInp) . transPipe C . exceptC . stateC
 {-# INLINE getC #-}
 
 -- | Get the total number of bytes read to this point.
 bytesRead :: Monad m => Get o e m ByteOffset
-bytesRead = lift $ C $ lift get
+bytesRead = lift $ C $ lift $ getStateBytesRead <$> get
 {-# INLINE bytesRead #-}
 
--- | Move 'bytesRead' counter forward by @n@ bytes.
-markAsRead :: Monad m => ByteOffset -> Get o e m ()
-markAsRead n = lift $ C $ lift $ modify' (+ n)
-{-# INLINE markAsRead #-}
+getInp :: Monad m => Get o e m (Maybe S.ByteString)
+getInp = do
+  !mi <- await
+  case mi of
+    Nothing -> return Nothing
+    Just (GetInp !i) -> do
+      lift $ C $ lift $ modify' $ trackGetAwait i
+      return $ Just i
+{-# INLINE getInp #-}
+
+ungetInp :: Monad m => S.ByteString -> Get o e m ()
+ungetInp i = do
+  lift $ C $ lift $ modify' $ trackGetLeftover $ fromIntegral $ SB.length i
+  leftover $ GetInp i
+{-# INLINE ungetInp #-}
 
 -- | Run the given 'Data.Binary.Get.Get' monad from binary package
 -- and convert result into 'Get'.
@@ -176,9 +196,9 @@ castGet :: Monad m => S.Get a -> Get o String m a
 castGet g =
   go (S.runGetIncremental g)
   where
-    go (S.Done t !o !r) = leftover (Inp t) >> markAsRead (fromIntegral o) >> return r
-    go (S.Fail t !o !e) = leftover (Inp t) >> markAsRead (fromIntegral o) >> throwError e
-    go (S.Partial !c) = go =<< (c . (bs <$>)) <$> await
+    go (S.Done !t _ !r) = ungetInp t >> return r
+    go (S.Fail !t _ !e) = ungetInp t >> throwError e
+    go (S.Partial !c) = go =<< c <$> getInp
 {-# INLINE castGet #-}
 
 -- | Convert decoder error. If the decoder fails, the given function will be applied
@@ -208,7 +228,8 @@ voidError :: Monad m => Get o e m a -> Get o () m a
 voidError = mapError (const ())
 {-# INLINE voidError #-}
 
-skipM :: Monad m => ByteOffset -> ConduitM Inp o m ByteOffset
+{-
+skipM :: Monad m => ByteOffset -> ConduitM GetInp o m ByteOffset
 skipM n =
   go 0
   where
@@ -216,11 +237,11 @@ skipM n =
       !mi <- await
       case mi of
         Nothing -> return consumed
-        Just (Inp !i) -> do
+        Just (GetInp !i) -> do
           let !next = consumed + fromIntegral (SB.length i)
           if next < n
             then go next
-            else leftover (Inp $ SB.drop (fromIntegral $ n - consumed) i) >> return n
+            else leftover (GetInp $ SB.drop (fromIntegral $ n - consumed) i) >> return n
 {-# INLINE skipM #-}
 
 -- | Skip ahead @n@ bytes. Fails if fewer than @n@ bytes are available.
@@ -233,7 +254,7 @@ skip n = do
     else return ()
 {-# INLINE skip #-}
 
-isolateM :: Monad m => ByteOffset -> ConduitM Inp Inp m ByteOffset
+isolateM :: Monad m => ByteOffset -> ConduitM GetInp GetInp m ByteOffset
 isolateM n =
   go 0
   where
@@ -241,13 +262,13 @@ isolateM n =
       !mi <- await
       case mi of
         Nothing -> return consumed
-        Just (Inp !i) -> do
+        Just (GetInp !i) -> do
           let (!h, !t) = SB.splitAt (fromIntegral $ n - consumed) i
           let !next = consumed + fromIntegral (SB.length h)
-          if SB.null h then return () else yield (Inp h)
+          if SB.null h then return () else yield (GetInp h)
           if next < n
             then go next
-            else leftover (Inp t) >> return n
+            else leftover (GetInp t) >> return n
 {-# INLINE isolateM #-}
 
 -- | Isolate a decoder to operate with a fixed number of bytes, and fail if
@@ -265,6 +286,7 @@ isolate n g f = do
     then throwError $ f consumed
     else return r
 {-# INLINE isolate #-}
+-}
 
 -- | An efficient get method for strict 'ByteString's. Fails if fewer than @n@
 -- bytes are left in the input. If @n <= 0@ then the empty string is returned.
@@ -275,13 +297,13 @@ getByteString n = do
     go consumed
       | SB.length consumed >= n = do
         let (!h, !t) = SB.splitAt n consumed
-        if SB.null t then return () else leftover (Inp t)
+        if SB.null t then return () else ungetInp t
         return h
       | otherwise = do
-        !mi <- await
+        !mi <- getInp
         case mi of
           Nothing -> throwError ()
-          Just (Inp !i) -> go $ consumed <> i
+          Just !i -> go $ consumed <> i
 {-# INLINE getByteString #-}
 
 {-
