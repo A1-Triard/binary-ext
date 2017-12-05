@@ -17,18 +17,21 @@ library
   hs-source-dirs: src
   exposed-modules: Data.Binary.Ext.Get
                  , Data.Binary.Ext.Put
+  other-modules: Data.Binary.Ext.Get.GetC
   build-depends: base >= 4.7 && < 5
                , binary
                , bytestring
                , conduit
                , conduit-combinators
                , data-binary-ieee754
-               , deepseq
                , errors
                , exceptions
+               , monad-control
+               , monad-loops
                , mono-traversable
                , mtl
                , transformers
+               , transformers-base
   default-extensions: BangPatterns
                     , CPP
                     , DataKinds
@@ -64,6 +67,7 @@ library
                     , TypeFamilies
                     , TypeOperators
                     , UnboxedTuples
+                    , UndecidableInstances
                     , UnicodeSyntax
                     , ViewPatterns
   include-dirs: include
@@ -83,12 +87,14 @@ test-suite binary-te-test
                , conduit
                , conduit-combinators
                , data-binary-ieee754
-               , deepseq
                , errors
                , exceptions
+               , monad-control
+               , monad-loops
                , mono-traversable
                , mtl
                , transformers
+               , transformers-base
   default-extensions: BangPatterns
                     , CPP
                     , DataKinds
@@ -124,6 +130,7 @@ test-suite binary-te-test
                     , TypeFamilies
                     , TypeOperators
                     , UnboxedTuples
+                    , UndecidableInstances
                     , UnicodeSyntax
                     , ViewPatterns
   include-dirs: include

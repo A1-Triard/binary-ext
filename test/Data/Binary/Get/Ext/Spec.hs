@@ -63,7 +63,7 @@ testInput4 =
 
 ensureEof :: Monad m => e -> Get o e m ()
 ensureEof e = do
-  eof <- N.nullE
+  eof <- getNull
   if eof then return () else throwError e
 
 get1 :: Monad m => Get Word16 Bool m ()
@@ -88,14 +88,14 @@ getTailBytes = do
 
 getBytes1 :: Assertion
 getBytes1 = do
-  let ((!e, !c), !r) = runIdentity $ N.yieldMany testInput1 $$ (runGet get1 0 `fuseBoth` N.sinkList)
+  let ((!e, !c), !r) = runIdentity $ N.yieldMany testInput1 $$ (runGet get1 `fuseBoth` N.sinkList)
   assertEqual "" (Right ()) e
   assertEqual "" [0x13 `shiftL` 8 .|. 0x12, 0x15 `shiftL` 8 .|. 0x14, 0x18 `shiftL` 8 .|. 0xF3] r
   assertEqual "" 6 c
 
 getBytes2 :: Assertion
 getBytes2 = do
-  let ((!e, !c), !r) = runIdentity $ N.yieldMany testInput2 $$ (runGet get1 0 `fuseBoth` N.sinkList)
+  let ((!e, !c), !r) = runIdentity $ N.yieldMany testInput2 $$ (runGet get1 `fuseBoth` N.sinkList)
   assertEqual "" (Left True) e
   assertEqual "" [0x13 `shiftL` 8 .|. 0x12, 0x15 `shiftL` 8 .|. 0x14, 0x18 `shiftL` 8 .|. 0xF3] r
   assertEqual "" 6 c
@@ -103,19 +103,19 @@ getBytes2 = do
 {-
 testSkip :: Assertion
 testSkip = do
-  let (!e, !c) = runIdentity $ N.yieldMany testInput3 $$ runGet get2 4
+  let (!e, !c) = runIdentity $ N.yieldMany testInput3 $$ runGet get2
   assertEqual "" (Right 7) e
-  assertEqual "" 7 c
+  assertEqual "" 3 c
 -}
 
 eofError :: Assertion
 eofError = do
-  let (!e, !c) = runIdentity $ N.yieldMany testInput4 $$ runGet getInt64host 0
+  let (!e, !c) = runIdentity $ N.yieldMany testInput4 $$ runGet getInt64host
   assertEqual "" (Left ()) e
   assertEqual "" 0 c
 
 eofOrNotEof :: Assertion
 eofOrNotEof = do
-  let (!e, !c) = runIdentity $ N.yieldMany testInput4 $$ runGet (Right <$> getInt64host <|> Left <$> getTailBytes) 0
+  let (!e, !c) = runIdentity $ N.yieldMany testInput4 $$ runGet (Right <$> getInt64host <|> Left <$> getTailBytes)
   assertEqual "" (Right $ Left "ABC") e
   assertEqual "" 3 c
