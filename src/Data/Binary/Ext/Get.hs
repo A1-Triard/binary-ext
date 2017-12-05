@@ -26,8 +26,9 @@
 
 module Data.Binary.Ext.Get
   ( ByteOffset
-  , GetState
-  , getStateBytesRead
+  , TrackGet
+  , trackGetBefore
+  , trackBytesRead
   , trackGetAwait
   , trackGetLeftover
   , GetC
@@ -77,18 +78,22 @@ module Data.Binary.Ext.Get
 -- | An offset, counted in bytes.
 type ByteOffset = Word64
 
-data GetState = GetState { getStateBytesRead :: ByteOffset, tracking :: Maybe ByteString }
+data TrackGet = TrackGet { trackBytesRead :: ByteOffset, tracking :: Maybe ByteString }
 
-trackGetAwait :: S.ByteString -> GetState -> GetState
-trackGetAwait inp s = GetState
-  { getStateBytesRead = getStateBytesRead s + fromIntegral (SB.length inp)
+trackGetBefore :: ByteOffset -> TrackGet
+trackGetBefore bytes_read_before = TrackGet { trackBytesRead = bytes_read_before, tracking = Nothing }
+{-# INLINE trackGetBefore #-}
+
+trackGetAwait :: S.ByteString -> TrackGet -> TrackGet
+trackGetAwait inp s = TrackGet
+  { trackBytesRead = trackBytesRead s + fromIntegral (SB.length inp)
   , tracking = B.append (B.fromStrict inp) <$> tracking s
   }
 {-# INLINE trackGetAwait #-}
 
-trackGetLeftover :: Int64 -> GetState -> GetState
-trackGetLeftover bytes_count s = GetState
-  { getStateBytesRead = getStateBytesRead s - fromIntegral bytes_count
+trackGetLeftover :: Int64 -> TrackGet -> TrackGet
+trackGetLeftover bytes_count s = TrackGet
+  { trackBytesRead = trackBytesRead s - fromIntegral bytes_count
   , tracking = B.drop bytes_count <$> tracking s
   }
 {-# INLINE trackGetLeftover #-}
@@ -98,7 +103,7 @@ newtype GetC
   e -- ^ Error type.
   m -- ^ Host monad type.
   a -- ^ Decoder result type.
-  = C { runC :: ExceptT e (StateT GetState m) a }
+  = C { runC :: ExceptT e (StateT TrackGet m) a }
 
 instance MonadTrans (GetC e) where
   lift = C . lift . lift
@@ -143,35 +148,35 @@ instance (Monoid e, Monad m) => Alternative (Get o e m) where
 
 track :: Monad m => Get o e m a -> Get o e m a
 track g = getC $ \c -> do
-  (!r, !f) <- runGetC g $ GetState
-    { getStateBytesRead = getStateBytesRead c
+  (!r, !f) <- runGetC g $ TrackGet
+    { trackBytesRead = trackBytesRead c
     , tracking = Just B.empty
     }
   let !tracking_f = fromMaybe (error "Data.Binary.Ext.Get.track") $ tracking f
   if isRight r
-    then  return (r, GetState { getStateBytesRead = getStateBytesRead f, tracking = B.append tracking_f <$> tracking c })
+    then  return (r, TrackGet { trackBytesRead = trackBytesRead f, tracking = B.append tracking_f <$> tracking c })
     else forM_ (B.toChunks tracking_f) leftover >> return (r, c)
 {-# INLINE track #-}
 
 -- | Run a 'Get' monad, converting all internal transformers into a 'ConduitM' result.
 runGet :: Monad m => Get o e m a -> ByteOffset -> ConduitM S.ByteString o m (Either e a, ByteOffset)
-runGet g bytes_read_before = (\(!r, !s) -> (r, getStateBytesRead s)) <$> runGetC g (GetState bytes_read_before Nothing)
+runGet g bytes_read_before = (\(!r, !s) -> (r, trackBytesRead s)) <$> runGetC g (trackGetBefore bytes_read_before)
 
 {-# INLINE runGet #-}
 
 -- | Run a 'Get' monad, converting all internal transformers into a 'ConduitM' result.
-runGetC :: Monad m => Get o e m a -> GetState -> ConduitM S.ByteString o m (Either e a, GetState)
+runGetC :: Monad m => Get o e m a -> TrackGet -> ConduitM S.ByteString o m (Either e a, TrackGet)
 runGetC g state_before = runStateC state_before $ runExceptC $ transPipe runC $ mapInput GetInp (Just . bs) g
 {-# INLINE runGetC #-}
 
 -- | Custom 'Get'.
-getC :: Monad m => (GetState -> ConduitM S.ByteString o m (Either e a, GetState)) -> Get o e m a
+getC :: Monad m => (TrackGet -> ConduitM S.ByteString o m (Either e a, TrackGet)) -> Get o e m a
 getC = mapInput bs (Just . GetInp) . transPipe C . exceptC . stateC
 {-# INLINE getC #-}
 
 -- | Get the total number of bytes read to this point.
 bytesRead :: Monad m => Get o e m ByteOffset
-bytesRead = lift $ C $ lift $ getStateBytesRead <$> get
+bytesRead = lift $ C $ lift $ trackBytesRead <$> get
 {-# INLINE bytesRead #-}
 
 getInp :: Monad m => Get o e m (Maybe S.ByteString)
