@@ -47,7 +47,7 @@ module Data.Binary.Ext.Get
   , withError
   , ifError
   , voidError
---  , skip
+  , skip
 --  , isolate
   , getByteString
   , getWord8
@@ -131,32 +131,26 @@ voidError :: Monad m => Get o e m a -> Get o () m a
 voidError = mapError (const ())
 {-# INLINE voidError #-}
 
-{-
-skipM :: Monad m => ByteOffset -> ConduitM GetInp o m ByteOffset
-skipM n =
-  go 0
-  where
-    go consumed = do
-      !mi <- await
-      case mi of
-        Nothing -> return consumed
-        Just (GetInp !i) -> do
-          let !next = consumed + fromIntegral (SB.length i)
-          if next < n
-            then go next
-            else leftover (GetInp $ SB.drop (fromIntegral $ n - consumed) i) >> return n
-{-# INLINE skipM #-}
-
 -- | Skip ahead @n@ bytes. Fails if fewer than @n@ bytes are available.
 skip :: Monad m => ByteOffset -> Get o () m ()
 skip n = do
-  !consumed <- skipM n
-  markAsRead consumed
+  !consumed <- go 0
   if consumed < n
     then throwError ()
     else return ()
+  where
+    go consumed = do
+      !mi <- getInp
+      case mi of
+        Nothing -> return consumed
+        Just !i -> do
+          let !next = consumed + fromIntegral (SB.length i)
+          if next < n
+            then go next
+            else ungetInp (SB.drop (fromIntegral $ n - consumed) i) >> return n
 {-# INLINE skip #-}
 
+{-
 isolateM :: Monad m => ByteOffset -> ConduitM GetInp GetInp m ByteOffset
 isolateM n =
   go 0
