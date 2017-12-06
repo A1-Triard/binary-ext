@@ -39,28 +39,36 @@ module Data.Binary.Ext.Get.GetC
 type ByteOffset = Word64
 
 -- | 'GetC' monad state.
-data Decoding = Decoding { decodingBytesRead :: ByteOffset, tracking :: Maybe ByteString } deriving Show
+data Decoding = Decoding { decodingBytesRead :: ByteOffset, tracking :: Maybe [S.ByteString] } deriving Show
+
+dropBytes :: ByteOffset -> [S.ByteString] -> [S.ByteString]
+dropBytes 0 !x = x
+dropBytes _ [] = error "Data.Binary.Ext.Get.dropBytes"
+dropBytes !n !(h : t)
+  | fromIntegral (SB.length h) <= n = dropBytes (n - fromIntegral (SB.length h)) t
+  | otherwise = SB.take (SB.length h - fromIntegral n) h : t
+{-# INLINE dropBytes #-}
 
 -- | Construct 'GetC' initial state.
 startDecoding :: ByteOffset -> Decoding
-startDecoding bytes_read_before = Decoding { decodingBytesRead = bytes_read_before, tracking = Nothing }
+startDecoding !bytes_read_before = Decoding { decodingBytesRead = bytes_read_before, tracking = Nothing }
 {-# INLINE startDecoding #-}
 
 -- | Modify 'GetC' state: mark byte string @inp@ as read.
 -- See 'getC' for usage example.
 decodingGot :: S.ByteString -> Decoding -> Decoding
-decodingGot inp s = Decoding
+decodingGot !inp !s = Decoding
   { decodingBytesRead = decodingBytesRead s + fromIntegral (SB.length inp)
-  , tracking = B.append (B.fromStrict inp) <$> tracking s
+  , tracking = (inp :) <$> tracking s
   }
 {-# INLINE decodingGot #-}
 
 -- | Modify 'GetC' state: mark last read @bytes_count@ as unread.
 -- See 'getC' for usage example.
-decodingUngot :: Int64 -> Decoding -> Decoding
-decodingUngot bytes_count s = Decoding
+decodingUngot :: ByteOffset -> Decoding -> Decoding
+decodingUngot !bytes_count !s = Decoding
   { decodingBytesRead = decodingBytesRead s - fromIntegral bytes_count
-  , tracking = B.drop bytes_count <$> tracking s
+  , tracking = dropBytes bytes_count <$> tracking s
   }
 {-# INLINE decodingUngot #-}
 
@@ -117,29 +125,39 @@ instance MonadBase b m => MonadBase b (ConduitM GetInp o (GetC e m)) where
 instance (Monoid e, Monad m) => Alternative (Get o e m) where
   empty = throwError mempty
   {-# INLINE empty #-}
-  a <|> b = catchError (track a) $ \ !ea -> catchError (track b) $ \ !eb -> throwError (ea `mappend` eb)
+  a <|> b = catchError (transaction a) $ \ !ea -> catchError (transaction b) $ \ !eb -> throwError (ea `mappend` eb)
   {-# INLINE (<|>) #-}
 
-track :: Monad m => Get o e m a -> Get o e m a
-track g = getC $ \ !c -> do
-  (!r, !f) <- runGetC g $ Decoding
-    { decodingBytesRead = decodingBytesRead c
-    , tracking = Just B.empty
-    }
+transaction :: Monad m => Get o e m a -> Get o e m a
+transaction !g = getC $ \ !c -> do
+  (!r, !f) <- runGetC (Decoding { decodingBytesRead = decodingBytesRead c, tracking = Just [] }) g
   let !tracking_f = fromMaybe (error "Data.Binary.Ext.Get.track") $ tracking f
   if isRight r
-    then  return (r, Decoding { decodingBytesRead = decodingBytesRead f, tracking = B.append tracking_f <$> tracking c })
-    else forM_ (B.toChunks tracking_f) leftover >> return (r, c)
-{-# INLINE track #-}
+    then  return (r, Decoding { decodingBytesRead = decodingBytesRead f, tracking = (tracking_f ++) <$> tracking c })
+    else forM_ tracking_f leftover >> return (r, c)
+{-# INLINE transaction #-}
 
 -- | Run a 'Get' monad, unwrapping all internal transformers in a reversible way.
--- 'getC' . runGetC = 'id'
-runGetC :: Monad m => Get o e m a -> Decoding -> ConduitM S.ByteString o m (Either e a, Decoding)
-runGetC g state_before = runStateC state_before $ runExceptC $ transPipe runC $ mapInput GetInp (Just . bs) g
+-- 'getC' . 'flip' runGetC = 'id'
+runGetC :: Monad m => Decoding -> Get o e m a -> ConduitM S.ByteString o m (Either e a, Decoding)
+runGetC !decoding = runStateC decoding . runExceptC . transPipe runC . mapInput GetInp (Just . bs)
 {-# INLINE runGetC #-}
 
 -- | Custom 'Get'.
--- getC . 'runGetC' = 'id'
+-- getC . 'flip' 'runGetC' = 'id'
+-- Example:
+-- > customGet :: Get
+-- > customGet = getC $ flip runStateC $ do
+-- >   !i <- await
+-- >   lift $ modify' $ decodingGot i
+-- >   leftover i
+-- >   decodingUngot
+-- >
+-- >
+-- >
+-- >
+-- >
+-- >
 getC :: Monad m => (Decoding -> ConduitM S.ByteString o m (Either e a, Decoding)) -> Get o e m a
 getC = mapInput bs (Just . GetInp) . transPipe C . exceptC . stateC
 {-# INLINE getC #-}
@@ -161,7 +179,7 @@ getInp = do
 -- Note: it is highly encouraged to only return leftover values from input already consumed from upstream.
 -- ungetInp is 'leftover' with injected inner 'decodingUngot'.
 ungetInp :: Monad m => S.ByteString -> Get o e m ()
-ungetInp i = do
+ungetInp !i = do
   leftover $ GetInp i
   lift $ C $ lift $ modify' $ decodingUngot $ fromIntegral $ SB.length i
 {-# INLINE ungetInp #-}
@@ -179,11 +197,11 @@ yieldInpOr :: Monad m
   => S.ByteString
   -> m () -- ^ Finalizer.
   -> ConduitM i GetInp m ()
-yieldInpOr o = yieldOr (GetInp o)
+yieldInpOr !o = yieldOr (GetInp o)
 {-# INLINE yieldInpOr #-}
 
 -- | Convert decoder error. If the decoder fails, the given function will be applied
 -- to the error message.
 mapError :: Monad m => (e -> e') -> Get o e m a -> Get o e' m a
-mapError f g = transPipe C $ exceptC $ either (Left . f) Right <$> runExceptC (transPipe runC g)
+mapError !f !g = transPipe C $ exceptC $ either (Left . f) Right <$> runExceptC (transPipe runC g)
 {-# INLINE mapError #-}

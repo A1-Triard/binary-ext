@@ -89,7 +89,7 @@ import Data.Binary.Ext.Get.GetC
 -- | Run a decoder presented as a 'Get' monad.
 -- Returns decoder result and consumed bytes count.
 runGet :: Monad m => Get o e m a -> ConduitM S.ByteString o m (Either e a, ByteOffset)
-runGet g = (\(!r, !s) -> (r, decodingBytesRead s)) <$> runGetC g (startDecoding 0)
+runGet g = (\(!r, !s) -> (r, decodingBytesRead s)) <$> runGetC (startDecoding 0) g
 {-# INLINE runGet #-}
 
 -- | Get the total number of bytes read to this point.

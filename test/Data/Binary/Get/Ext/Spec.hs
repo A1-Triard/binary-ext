@@ -34,6 +34,7 @@ tests = TestList
   , TestCase testIsolateOverAlternativeIsolateExactly
   , TestCase testIsolateOverAlternativeIsolateEnough
   , TestCase testIsolateOverAlternativeIsolateEnoughButEof
+  , TestCase testAlternativeRollback
   ]
 
 testInput1 :: [S.ByteString]
@@ -67,6 +68,12 @@ testInput5 :: [S.ByteString]
 testInput5 =
   [ "AB"
   , "CDE"
+  ]
+
+testInput6 :: [S.ByteString]
+testInput6 =
+  [ "\x01\x02\x03\x04\x05\x06"
+  , "\x07\x08\x09\x0A\x0B\x0C"
   ]
 
 ensureEof :: Monad m => e -> Get o e m ()
@@ -155,3 +162,9 @@ testIsolateOverAlternativeIsolateEnoughButEof = do
       $$ runGet (isolate 4 (Left Nothing) (Left . Just) $ mapError Right $ Right <$> getInt32le <|> Left <$> getWord8)
   assertEqual "" (Left $ Left Nothing) e
   assertEqual "" 3 c
+
+testAlternativeRollback :: Assertion
+testAlternativeRollback = do
+  let (!e, !c) = runIdentity $ N.yieldMany testInput6 $$ runGet ((skip 9 >> throwError ()) <|> getWord64le)
+  assertEqual "" (Right $ 0x01 .|. 0x02 `shiftL` 8 .|. 0x03 `shiftL` 16 .|. 0x04 `shiftL` 24 .|. 0x05 `shiftL` 32 .|. 0x06 `shiftL` 40 .|. 0x07 `shiftL` 48 .|. 0x08 `shiftL` 56) e
+  assertEqual "" 8 c
