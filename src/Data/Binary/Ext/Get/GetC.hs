@@ -138,13 +138,13 @@ transaction !g = getC $ \ !c -> do
 {-# INLINE transaction #-}
 
 -- | Run a 'Get' monad, unwrapping all internal transformers in a reversible way.
--- 'getC' . 'flip' runGetC = 'id'
+-- @'getC' . 'flip' runGetC = 'id'@
 runGetC :: Monad m => Decoding -> Get o e m a -> ConduitM S.ByteString o m (Either e a, Decoding)
 runGetC !decoding = runStateC decoding . runExceptC . transPipe runC . mapInput ByteChunk (Just . bs)
 {-# INLINE runGetC #-}
 
 -- | Custom 'Get'.
--- getC . 'flip' 'runGetC' = 'id'
+-- @getC . 'flip' 'runGetC' = 'id'@
 -- Example:
 -- > skipUntilZero :: Monad m => Get o e m ()
 -- > skipUntilZero = getC $ flip runStateC $ do

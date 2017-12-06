@@ -52,6 +52,7 @@ module Data.Binary.Ext.Get
   , skip
   , isolate
   , getByteString
+  , getLazyByteString
   , getWord8
   , getInt8
   , getWord16be
@@ -219,8 +220,7 @@ getByteString !n = do
           Just !i -> go $ consumed <> i
 {-# INLINE getByteString #-}
 
-{-
--- | An efficient get method for strict 'ByteString's. Fails if fewer than @n@
+-- | An efficient get method for lazy 'ByteString's. Fails if fewer than @n@
 -- bytes are left in the input. If @n <= 0@ then the empty string is returned.
 getLazyByteString :: Monad m => Int64 -> Get o () m ByteString
 getLazyByteString n = do
@@ -229,21 +229,19 @@ getLazyByteString n = do
     go consumed
       | B.length consumed >= n = do
         let (!h, !t) = B.splitAt n consumed
-        if B.null t then return () else forM_ (reverse B.toByteChunks t) ungetChunk
+        if B.null t then return () else forM_ (reverse $ B.toChunks t) ungetChunk
         return h
       | otherwise = do
         !mi <- getChunk
         case mi of
           Nothing -> throwError ()
-          Just !i -> go $ consumed <> i
-{-# INLINE getByteString #-}
--}
+          Just !i -> go $ consumed <> B.fromStrict i
+{-# INLINE getLazyByteString #-}
+
 {-
-    , getLazyByteString
     , getLazyByteStringNul
     , getRemainingLazyByteString
 -}
-
 
 voidCastGet :: Monad m => S.Get a -> Get o () m a
 voidCastGet = voidError . castGet
