@@ -147,15 +147,21 @@ skip n = do
     then throwError ()
     else return ()
   where
-    go consumed = do
-      !mi <- getInp
-      case mi of
-        Nothing -> return consumed
-        Just !i -> do
-          let !next = consumed + fromIntegral (SB.length i)
-          if next < n
-            then go next
-            else ungetInp (SB.drop (fromIntegral $ n - consumed) i) >> return n
+    go consumed
+      | consumed > n = error "Data.Binary.Ext.Get.skip"
+      | consumed == n = return n
+      | otherwise = do
+        !mi <- getInp
+        case mi of
+          Nothing -> return consumed
+          Just !i -> do
+              let !gap = n - consumed
+              if gap >= fromIntegral (SB.length i)
+                then do
+                  go $ consumed + fromIntegral (SB.length i)
+                else do
+                  ungetInp $ SB.drop (fromIntegral gap) i
+                  return n
 {-# INLINE skip #-}
 
 -- | Isolate a decoder to operate with a fixed number of bytes, and fail if
