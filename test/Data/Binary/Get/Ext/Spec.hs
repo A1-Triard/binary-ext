@@ -30,6 +30,10 @@ tests = TestList
   , TestCase testSkip
   , TestCase eofError
   , TestCase eofOrNotEof
+  , TestCase testIsolateOverAlternativeIsolateNotEnough
+  , TestCase testIsolateOverAlternativeIsolateExactly
+  , TestCase testIsolateOverAlternativeIsolateEnough
+  , TestCase testIsolateOverAlternativeIsolateEnoughButEof
   ]
 
 testInput1 :: [S.ByteString]
@@ -57,6 +61,12 @@ testInput4 :: [S.ByteString]
 testInput4 =
   [ "AB"
   , "C"
+  ]
+
+testInput5 :: [S.ByteString]
+testInput5 =
+  [ "AB"
+  , "CDE"
   ]
 
 ensureEof :: Monad m => e -> Get o e m ()
@@ -112,4 +122,36 @@ eofOrNotEof :: Assertion
 eofOrNotEof = do
   let (!e, !c) = runIdentity $ N.yieldMany testInput4 $$ runGet (Right <$> getInt64host <|> Left <$> getTailBytes)
   assertEqual "" (Right $ Left "ABC") e
+  assertEqual "" 3 c
+
+testIsolateOverAlternativeIsolateNotEnough :: Assertion
+testIsolateOverAlternativeIsolateNotEnough = do
+  let
+    (!e, !c) = runIdentity $ N.yieldMany testInput5
+      $$ runGet (isolate 2 (Left Nothing) (Left . Just) $ mapError Right $ Right <$> getInt32le <|> Left <$> getWord8)
+  assertEqual "" (Left $ Left $ Just 1) e
+  assertEqual "" 1 c
+
+testIsolateOverAlternativeIsolateExactly :: Assertion
+testIsolateOverAlternativeIsolateExactly = do
+  let
+    (!e, !c) = runIdentity $ N.yieldMany testInput5
+      $$ runGet (isolate 1 (Left Nothing) (Left . Just) $ mapError Right $ Right <$> getInt32le <|> Left <$> getWord8)
+  assertEqual "" (Right $ Left $ fromIntegral $ ord 'A') e
+  assertEqual "" 1 c
+
+testIsolateOverAlternativeIsolateEnough :: Assertion
+testIsolateOverAlternativeIsolateEnough = do
+  let
+    (!e, !c) = runIdentity $ N.yieldMany testInput5
+      $$ runGet (isolate 4 (Left Nothing) (Left . Just) $ mapError Right $ Right <$> getInt32le <|> Left <$> getWord8)
+  assertEqual "" (Right $ Right 1145258561) e
+  assertEqual "" 4 c
+
+testIsolateOverAlternativeIsolateEnoughButEof :: Assertion
+testIsolateOverAlternativeIsolateEnoughButEof = do
+  let
+    (!e, !c) = runIdentity $ N.yieldMany testInput4
+      $$ runGet (isolate 4 (Left Nothing) (Left . Just) $ mapError Right $ Right <$> getInt32le <|> Left <$> getWord8)
+  assertEqual "" (Left $ Left Nothing) e
   assertEqual "" 3 c

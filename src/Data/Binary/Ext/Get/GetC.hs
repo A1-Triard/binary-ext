@@ -16,11 +16,11 @@
 
 module Data.Binary.Ext.Get.GetC
   ( ByteOffset
-  , TrackGet
-  , trackGetBefore
-  , trackBytesRead
-  , trackGetAwait
-  , trackGetLeftover
+  , Decoding
+  , startDecoding
+  , decodingBytesRead
+  , decodingGot
+  , decodingUngot
   , GetC
   , GetInp
   , Get
@@ -28,6 +28,8 @@ module Data.Binary.Ext.Get.GetC
   , getC
   , getInp
   , ungetInp
+  , yieldInp
+  , yieldInpOr
   , mapError
   ) where
 
@@ -37,37 +39,37 @@ module Data.Binary.Ext.Get.GetC
 type ByteOffset = Word64
 
 -- | 'GetC' monad state.
-data TrackGet = TrackGet { trackBytesRead :: ByteOffset, tracking :: Maybe ByteString } deriving Show
+data Decoding = Decoding { decodingBytesRead :: ByteOffset, tracking :: Maybe ByteString } deriving Show
 
 -- | Construct 'GetC' initial state.
-trackGetBefore :: ByteOffset -> TrackGet
-trackGetBefore bytes_read_before = TrackGet { trackBytesRead = bytes_read_before, tracking = Nothing }
-{-# INLINE trackGetBefore #-}
+startDecoding :: ByteOffset -> Decoding
+startDecoding bytes_read_before = Decoding { decodingBytesRead = bytes_read_before, tracking = Nothing }
+{-# INLINE startDecoding #-}
 
 -- | Modify 'GetC' state: mark byte string @inp@ as read.
 -- See 'getC' for usage example.
-trackGetAwait :: S.ByteString -> TrackGet -> TrackGet
-trackGetAwait inp s = TrackGet
-  { trackBytesRead = trackBytesRead s + fromIntegral (SB.length inp)
+decodingGot :: S.ByteString -> Decoding -> Decoding
+decodingGot inp s = Decoding
+  { decodingBytesRead = decodingBytesRead s + fromIntegral (SB.length inp)
   , tracking = B.append (B.fromStrict inp) <$> tracking s
   }
-{-# INLINE trackGetAwait #-}
+{-# INLINE decodingGot #-}
 
 -- | Modify 'GetC' state: mark last read @bytes_count@ as unread.
 -- See 'getC' for usage example.
-trackGetLeftover :: Int64 -> TrackGet -> TrackGet
-trackGetLeftover bytes_count s = TrackGet
-  { trackBytesRead = trackBytesRead s - fromIntegral bytes_count
+decodingUngot :: Int64 -> Decoding -> Decoding
+decodingUngot bytes_count s = Decoding
+  { decodingBytesRead = decodingBytesRead s - fromIntegral bytes_count
   , tracking = B.drop bytes_count <$> tracking s
   }
-{-# INLINE trackGetLeftover #-}
+{-# INLINE decodingUngot #-}
 
 -- | Internal transformers for 'Get'.
 newtype GetC
   e -- ^ Error type.
   m -- ^ Host monad type.
   a -- ^ Decoder result type.
-  = C { runC :: ExceptT e (StateT TrackGet m) a }
+  = C { runC :: ExceptT e (StateT Decoding m) a }
 
 instance MonadTrans (GetC e) where
   lift = C . lift . lift
@@ -83,7 +85,7 @@ deriving instance (Monad m, Monoid e) => MonadPlus (GetC e m)
 deriving instance Monad m => MonadError e (GetC e m)
 
 instance MonadTransControl (GetC e) where
-  type StT (GetC e) a = StT (StateT TrackGet) (StT (ExceptT e) a)
+  type StT (GetC e) a = StT (StateT Decoding) (StT (ExceptT e) a)
   liftWith = defaultLiftWith2 C runC
   restoreT = defaultRestoreT2 C
 
@@ -120,49 +122,65 @@ instance (Monoid e, Monad m) => Alternative (Get o e m) where
 
 track :: Monad m => Get o e m a -> Get o e m a
 track g = getC $ \ !c -> do
-  (!r, !f) <- runGetC g $ TrackGet
-    { trackBytesRead = trackBytesRead c
+  (!r, !f) <- runGetC g $ Decoding
+    { decodingBytesRead = decodingBytesRead c
     , tracking = Just B.empty
     }
   let !tracking_f = fromMaybe (error "Data.Binary.Ext.Get.track") $ tracking f
   if isRight r
-    then  return (r, TrackGet { trackBytesRead = trackBytesRead f, tracking = B.append tracking_f <$> tracking c })
+    then  return (r, Decoding { decodingBytesRead = decodingBytesRead f, tracking = B.append tracking_f <$> tracking c })
     else forM_ (B.toChunks tracking_f) leftover >> return (r, c)
 {-# INLINE track #-}
 
 -- | Run a 'Get' monad, unwrapping all internal transformers in a reversible way.
 -- 'getC' . runGetC = 'id'
-runGetC :: Monad m => Get o e m a -> TrackGet -> ConduitM S.ByteString o m (Either e a, TrackGet)
+runGetC :: Monad m => Get o e m a -> Decoding -> ConduitM S.ByteString o m (Either e a, Decoding)
 runGetC g state_before = runStateC state_before $ runExceptC $ transPipe runC $ mapInput GetInp (Just . bs) g
 {-# INLINE runGetC #-}
 
 -- | Custom 'Get'.
 -- getC . 'runGetC' = 'id'
-getC :: Monad m => (TrackGet -> ConduitM S.ByteString o m (Either e a, TrackGet)) -> Get o e m a
+getC :: Monad m => (Decoding -> ConduitM S.ByteString o m (Either e a, Decoding)) -> Get o e m a
 getC = mapInput bs (Just . GetInp) . transPipe C . exceptC . stateC
 {-# INLINE getC #-}
 
 -- | Wait for a single input value from upstream. If no data is available, returns 'Nothing'.
 -- Once await returns 'Nothing', subsequent calls will also return 'Nothing'.
--- getInp is 'await' with injected inner 'trackGetAwait'.
+-- getInp is 'await' with injected inner 'decodingGot'.
 getInp :: Monad m => Get o e m (Maybe S.ByteString)
 getInp = do
   !mi <- await
   case mi of
     Nothing -> return Nothing
     Just (GetInp !i) -> do
-      lift $ C $ lift $ modify' $ trackGetAwait i
+      lift $ C $ lift $ modify' $ decodingGot i
       return $ Just i
 {-# INLINE getInp #-}
 
 -- | Provide a single piece of leftover input to be consumed by the next component in the current monadic binding.
 -- Note: it is highly encouraged to only return leftover values from input already consumed from upstream.
--- ungetInp is 'leftover' with injected inner 'trackGetLeftover'.
+-- ungetInp is 'leftover' with injected inner 'decodingUngot'.
 ungetInp :: Monad m => S.ByteString -> Get o e m ()
 ungetInp i = do
-  lift $ C $ lift $ modify' $ trackGetLeftover $ fromIntegral $ SB.length i
   leftover $ GetInp i
+  lift $ C $ lift $ modify' $ decodingUngot $ fromIntegral $ SB.length i
 {-# INLINE ungetInp #-}
+
+-- | Send a value downstream to the next component to consume. If the downstream component terminates,
+-- this call will never return control. If you would like to register a cleanup function, please use 'yieldInpOr' instead.
+-- yieldInp is 'yield' with injected conversion from 'GetInp' to 'S.ByteString'.
+yieldInp :: Monad m => S.ByteString -> ConduitM i GetInp m ()
+yieldInp = yield . GetInp
+{-# INLINE yieldInp #-}
+
+-- | Similar to 'yieldInp', but additionally takes a finalizer to be run if the downstream component terminates.
+-- yieldInpOr is 'yieldOr' with injected conversion from 'GetInp' to 'S.ByteString'.
+yieldInpOr :: Monad m
+  => S.ByteString
+  -> m () -- ^ Finalizer.
+  -> ConduitM i GetInp m ()
+yieldInpOr o = yieldOr (GetInp o)
+{-# INLINE yieldInpOr #-}
 
 -- | Convert decoder error. If the decoder fails, the given function will be applied
 -- to the error message.

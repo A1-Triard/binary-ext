@@ -26,11 +26,11 @@
 
 module Data.Binary.Ext.Get
   ( ByteOffset
-  , TrackGet
-  , trackGetBefore
-  , trackBytesRead
-  , trackGetAwait
-  , trackGetLeftover
+  , Decoding
+  , startDecoding
+  , decodingBytesRead
+  , decodingGot
+  , decodingUngot
   , GetC
   , GetInp
   , Get
@@ -38,6 +38,8 @@ module Data.Binary.Ext.Get
   , getC
   , getInp
   , ungetInp
+  , yieldInp
+  , yieldInpOr
   , mapError
   , runGet
   , bytesRead
@@ -62,6 +64,12 @@ module Data.Binary.Ext.Get
   , getWord16host
   , getWord32host
   , getWord64host
+  , getInt16be
+  , getInt32be
+  , getInt64be
+  , getInt16le
+  , getInt32le
+  , getInt64le
   , getInthost
   , getInt16host
   , getInt32host
@@ -81,12 +89,12 @@ import Data.Binary.Ext.Get.GetC
 -- | Run a decoder presented as a 'Get' monad.
 -- Returns decoder result and consumed bytes count.
 runGet :: Monad m => Get o e m a -> ConduitM S.ByteString o m (Either e a, ByteOffset)
-runGet g = (\(!r, !s) -> (r, trackBytesRead s)) <$> runGetC g (trackGetBefore 0)
+runGet g = (\(!r, !s) -> (r, decodingBytesRead s)) <$> runGetC g (startDecoding 0)
 {-# INLINE runGet #-}
 
 -- | Get the total number of bytes read to this point.
 bytesRead :: Monad m => Get o e m ByteOffset
-bytesRead = getC $ \ !x -> return (Right $ trackBytesRead x, x)
+bytesRead = getC $ \ !x -> return (Right $ decodingBytesRead x, x)
 {-# INLINE bytesRead #-}
 
 -- | Run the given 'S.Get' monad from binary package
@@ -155,27 +163,36 @@ skip n = do
 -- Unlike 'Data.Binary.Get.isolate' from binary package,
 -- offset from 'bytesRead' will NOT be relative to the start of 'isolate'.
 isolate :: Monad m
-  => ByteOffset -- ^ The number of bytes that must be consumed
-  -> Get o e m a -- ^ The decoder to isolate
-  -> (ByteOffset -> e) -- ^ The error if fewer bytes were consumed
+  => ByteOffset -- ^ The number of bytes that must be consumed.
+  -> e -- ^ The error if if fewer than @n@ bytes are available.
+  -> (ByteOffset -> e) -- ^ The error if fewer than @n@ bytes were consumed.
+  -> Get o e m a -- ^ The decoder to isolate.
   -> Get o e m a
-isolate n g f = do
-  (!consumed, !r) <- fuseBoth (go 0) g
-  if consumed < n
-    then throwError $ f consumed
+isolate n unexpected_eof f g = do
+  !o1 <- bytesRead
+  !r <- go 0 =$= g
+  !o2 <- bytesRead
+  if o2 - o1 < n
+    then throwError $ f $ o2 - o1
     else return r
   where
-    go consumed = do
-      !mi <- getInp
-      case mi of
-        Nothing -> return consumed
-        Just !i -> do
-          let (!h, !t) = SB.splitAt (fromIntegral $ n - consumed) i
-          let !next = consumed + fromIntegral (SB.length h)
-          if SB.null h then return () else ungetInp h
-          if next < n
-            then go next
-            else ungetInp t >> return n
+    go consumed
+      | consumed > n = error "Data.Binary.Ext.Get.isolate"
+      | consumed == n = return ()
+      | otherwise = do
+          !mi <- getInp
+          case mi of
+            Nothing -> throwError unexpected_eof
+            Just !i -> do
+              let !gap = n - consumed
+              if gap >= fromIntegral (SB.length i)
+                then do
+                  yieldInp i
+                  go $ consumed + fromIntegral (SB.length i)
+                else do
+                  let (!h, !t) = SB.splitAt (fromIntegral gap) i
+                  yieldInp h
+                  ungetInp t
 {-# INLINE isolate #-}
 
 -- | An efficient get method for strict 'ByteString's. Fails if fewer than @n@
@@ -268,6 +285,36 @@ getWord32host = voidCastGet S.getWord32host
 getWord64host :: Monad m => Get o () m Word64
 getWord64host = voidCastGet S.getWord64host
 {-# INLINE getWord64host #-}
+
+-- | Read a 'Int16' in big endian format.
+getInt16be :: Monad m => Get o () m Int16
+getInt16be = voidCastGet S.getInt16be
+{-# INLINE getInt16be #-}
+
+-- | Read a 'Int32' in big endian format.
+getInt32be :: Monad m => Get o () m Int32
+getInt32be = voidCastGet S.getInt32be
+{-# INLINE getInt32be #-}
+
+-- | Read a 'Int64' in big endian format.
+getInt64be :: Monad m => Get o () m Int64
+getInt64be = voidCastGet S.getInt64be
+{-# INLINE getInt64be #-}
+
+-- | Read a 'Int16' in little endian format.
+getInt16le :: Monad m => Get o () m Int16
+getInt16le = voidCastGet S.getInt16le
+{-# INLINE getInt16le #-}
+
+-- | Read a 'Int32' in little endian format.
+getInt32le :: Monad m => Get o () m Int32
+getInt32le = voidCastGet S.getInt32le
+{-# INLINE getInt32le #-}
+
+-- | Read a 'Int64' in little endian format.
+getInt64le :: Monad m => Get o () m Int64
+getInt64le = voidCastGet S.getInt64le
+{-# INLINE getInt64le #-}
 
 -- | Read a single native machine word. It works in the same way as 'getWordhost'.
 getInthost :: Monad m => Get o () m Int
