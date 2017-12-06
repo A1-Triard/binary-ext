@@ -229,7 +229,7 @@ getWord8 :: Monad m => Get o () m Word8
 getWord8 = voidCastGet S.getWord8
 {-# INLINE getWord8 #-}
 
--- | Read a 'Int8' from the monad state.
+-- | Read an 'Int8' from the monad state.
 getInt8 :: Monad m => Get o () m Int8
 getInt8 = voidCastGet S.getInt8
 {-# INLINE getInt8 #-}
@@ -286,32 +286,32 @@ getWord64host :: Monad m => Get o () m Word64
 getWord64host = voidCastGet S.getWord64host
 {-# INLINE getWord64host #-}
 
--- | Read a 'Int16' in big endian format.
+-- | Read an 'Int16' in big endian format.
 getInt16be :: Monad m => Get o () m Int16
 getInt16be = voidCastGet S.getInt16be
 {-# INLINE getInt16be #-}
 
--- | Read a 'Int32' in big endian format.
+-- | Read an 'Int32' in big endian format.
 getInt32be :: Monad m => Get o () m Int32
 getInt32be = voidCastGet S.getInt32be
 {-# INLINE getInt32be #-}
 
--- | Read a 'Int64' in big endian format.
+-- | Read an 'Int64' in big endian format.
 getInt64be :: Monad m => Get o () m Int64
 getInt64be = voidCastGet S.getInt64be
 {-# INLINE getInt64be #-}
 
--- | Read a 'Int16' in little endian format.
+-- | Read an 'Int16' in little endian format.
 getInt16le :: Monad m => Get o () m Int16
 getInt16le = voidCastGet S.getInt16le
 {-# INLINE getInt16le #-}
 
--- | Read a 'Int32' in little endian format.
+-- | Read an 'Int32' in little endian format.
 getInt32le :: Monad m => Get o () m Int32
 getInt32le = voidCastGet S.getInt32le
 {-# INLINE getInt32le #-}
 
--- | Read a 'Int64' in little endian format.
+-- | Read an 'Int64' in little endian format.
 getInt64le :: Monad m => Get o () m Int64
 getInt64le = voidCastGet S.getInt64le
 {-# INLINE getInt64le #-}
