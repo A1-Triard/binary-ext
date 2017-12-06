@@ -201,7 +201,7 @@ isolate n unexpected_eof f g = do
                   ungetInp t
 {-# INLINE isolate #-}
 
--- | An efficient get method for strict 'ByteString's. Fails if fewer than @n@
+-- | An efficient get method for strict 'S.ByteString's. Fails if fewer than @n@
 -- bytes are left in the input. If @n <= 0@ then the empty string is returned.
 getByteString :: Monad m => Int -> Get o () m S.ByteString
 getByteString n = do
@@ -219,6 +219,25 @@ getByteString n = do
           Just !i -> go $ consumed <> i
 {-# INLINE getByteString #-}
 
+{-
+-- | An efficient get method for strict 'ByteString's. Fails if fewer than @n@
+-- bytes are left in the input. If @n <= 0@ then the empty string is returned.
+getLazyByteString :: Monad m => Int64 -> Get o () m ByteString
+getLazyByteString n = do
+  go B.empty
+  where
+    go consumed
+      | B.length consumed >= n = do
+        let (!h, !t) = B.splitAt n consumed
+        if B.null t then return () else forM_ (reverse B.toChunks t) ungetInp
+        return h
+      | otherwise = do
+        !mi <- getInp
+        case mi of
+          Nothing -> throwError ()
+          Just !i -> go $ consumed <> i
+{-# INLINE getByteString #-}
+-}
 {-
     , getLazyByteString
     , getLazyByteStringNul
