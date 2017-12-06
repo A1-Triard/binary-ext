@@ -39,7 +39,7 @@ module Data.Binary.Ext.Get.GetC
 type ByteOffset = Word64
 
 -- | 'GetC' monad state.
-data Decoding = Decoding { decodingBytesRead :: ByteOffset, tracking :: Maybe [S.ByteString] } deriving Show
+data Decoding = Decoding { decodingBytesRead :: !ByteOffset, tracking :: !(Maybe [S.ByteString]) } deriving Show
 
 dropBytes :: ByteOffset -> [S.ByteString] -> [S.ByteString]
 dropBytes 0 !x = x
@@ -203,5 +203,5 @@ yieldInpOr !o = yieldOr (GetInp o)
 -- | Convert decoder error. If the decoder fails, the given function will be applied
 -- to the error message.
 mapError :: Monad m => (e -> e') -> Get o e m a -> Get o e' m a
-mapError !f !g = transPipe C $ exceptC $ either (Left . f) Right <$> runExceptC (transPipe runC g)
+mapError f !g = transPipe C $ exceptC $ either (Left . f) Right <$> runExceptC (transPipe runC g)
 {-# INLINE mapError #-}

@@ -89,7 +89,7 @@ import Data.Binary.Ext.Get.GetC
 -- | Run a decoder presented as a 'Get' monad.
 -- Returns decoder result and consumed bytes count.
 runGet :: Monad m => Get o e m a -> ConduitM S.ByteString o m (Either e a, ByteOffset)
-runGet g = (\(!r, !s) -> (r, decodingBytesRead s)) <$> runGetC (startDecoding 0) g
+runGet !g = (\(!r, !s) -> (r, decodingBytesRead s)) <$> runGetC (startDecoding 0) g
 {-# INLINE runGet #-}
 
 -- | Get the total number of bytes read to this point.
@@ -100,7 +100,7 @@ bytesRead = getC $ \ !x -> return (Right $ decodingBytesRead x, x)
 -- | Run the given 'S.Get' monad from binary package
 -- and convert result into 'Get'.
 castGet :: Monad m => S.Get a -> Get o String m a
-castGet g =
+castGet !g =
   go (S.runGetIncremental g)
   where
     go (S.Done !t _ !r) = ungetInp t >> return r
@@ -141,7 +141,7 @@ voidError = mapError (const ())
 
 -- | Skip ahead @n@ bytes. Fails if fewer than @n@ bytes are available.
 skip :: Monad m => ByteOffset -> Get o () m ()
-skip n = do
+skip !n = do
   !consumed <- go 0
   if consumed < n
     then throwError ()
@@ -174,7 +174,7 @@ isolate :: Monad m
   -> (ByteOffset -> e) -- ^ The error if fewer than @n@ bytes were consumed.
   -> Get o e m a -- ^ The decoder to isolate.
   -> Get o e m a
-isolate n unexpected_eof f g = do
+isolate !n unexpected_eof f !g = do
   !o1 <- bytesRead
   !r <- go 0 =$= g
   !o2 <- bytesRead
@@ -204,7 +204,7 @@ isolate n unexpected_eof f g = do
 -- | An efficient get method for strict 'S.ByteString's. Fails if fewer than @n@
 -- bytes are left in the input. If @n <= 0@ then the empty string is returned.
 getByteString :: Monad m => Int -> Get o () m S.ByteString
-getByteString n = do
+getByteString !n = do
   go SB.empty
   where
     go consumed
