@@ -146,18 +146,21 @@ runGetC !decoding = runStateC decoding . runExceptC . transPipe runC . mapInput 
 -- | Custom 'Get'.
 -- getC . 'flip' 'runGetC' = 'id'
 -- Example:
--- > customGet :: Get
--- > customGet = getC $ flip runStateC $ do
--- >   !i <- await
--- >   lift $ modify' $ decodingGot i
--- >   leftover i
--- >   decodingUngot
--- >
--- >
--- >
--- >
--- >
--- >
+-- > skipUntilZero :: Monad m => Get o e m ()
+-- > skipUntilZero = getC $ flip runStateC $ do
+-- >   untilM_ (return ()) $ do
+-- >     !m_inp <- await
+-- >     case m_inp of
+-- >       Nothing -> return True
+-- >       Just !inp -> do
+-- >         lift $ modify' $ decodingGot inp
+-- >         case SB.elemIndex 0 inp of
+-- >           Nothing -> return ()
+-- >           Just !i -> do
+-- >             let (!h, !t) = SB.splitAt i inp
+-- >             leftover t
+-- >             lift $ modify' $ decodingUngot $ SB.length t
+-- Please note, the above code is just a sample, and this particular function can be defined in easy way without getC.
 getC :: Monad m => (Decoding -> ConduitM S.ByteString o m (Either e a, Decoding)) -> Get o e m a
 getC = mapInput bs (Just . ByteChunk) . transPipe C . exceptC . stateC
 {-# INLINE getC #-}
