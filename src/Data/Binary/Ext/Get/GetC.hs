@@ -22,14 +22,14 @@ module Data.Binary.Ext.Get.GetC
   , decodingGot
   , decodingUngot
   , GetC
-  , GetInp
+  , ByteChunk
   , Get
   , runGetC
   , getC
-  , getInp
-  , ungetInp
-  , yieldInp
-  , yieldInpOr
+  , getChunk
+  , ungetChunk
+  , yieldChunk
+  , yieldChunkOr
   , mapError
   ) where
 
@@ -106,20 +106,20 @@ instance MonadBaseControl b m => MonadBaseControl b (GetC e m) where
   restoreM = defaultRestoreM
 
 -- | A wrapped 'S.ByteString'.
--- There is no direct conversion between 'S.ByteString' and 'GetInp'.
--- Use 'getInt' instead of 'await' and 'ungetInp' instead of 'leftover'
--- to get unwrapped 'S.ByteString' instead of 'GetInp'.
-newtype GetInp = GetInp { bs :: S.ByteString }
-type instance Element GetInp = Word8
-deriving instance Show GetInp
-deriving instance Semigroup GetInp
-deriving instance Monoid GetInp
-deriving instance MonoFunctor GetInp
+-- There is no direct conversion between 'S.ByteString' and 'ByteChunk'.
+-- Use 'getInt' instead of 'await' and 'ungetChunk' instead of 'leftover'
+-- to get unwrapped 'S.ByteString' instead of 'ByteChunk'.
+newtype ByteChunk = ByteChunk { bs :: S.ByteString }
+type instance Element ByteChunk = Word8
+deriving instance Show ByteChunk
+deriving instance Semigroup ByteChunk
+deriving instance Monoid ByteChunk
+deriving instance MonoFunctor ByteChunk
 
 -- | A 'ConduitM' with internal transformers supposed to a binary deserialization.
-type Get o e m = ConduitM GetInp o (GetC e m)
+type Get o e m = ConduitM ByteChunk o (GetC e m)
 
-instance MonadBase b m => MonadBase b (ConduitM GetInp o (GetC e m)) where
+instance MonadBase b m => MonadBase b (ConduitM ByteChunk o (GetC e m)) where
   liftBase = liftBaseDefault
 
 instance (Monoid e, Monad m) => Alternative (Get o e m) where
@@ -140,7 +140,7 @@ transaction !g = getC $ \ !c -> do
 -- | Run a 'Get' monad, unwrapping all internal transformers in a reversible way.
 -- 'getC' . 'flip' runGetC = 'id'
 runGetC :: Monad m => Decoding -> Get o e m a -> ConduitM S.ByteString o m (Either e a, Decoding)
-runGetC !decoding = runStateC decoding . runExceptC . transPipe runC . mapInput GetInp (Just . bs)
+runGetC !decoding = runStateC decoding . runExceptC . transPipe runC . mapInput ByteChunk (Just . bs)
 {-# INLINE runGetC #-}
 
 -- | Custom 'Get'.
@@ -159,46 +159,46 @@ runGetC !decoding = runStateC decoding . runExceptC . transPipe runC . mapInput 
 -- >
 -- >
 getC :: Monad m => (Decoding -> ConduitM S.ByteString o m (Either e a, Decoding)) -> Get o e m a
-getC = mapInput bs (Just . GetInp) . transPipe C . exceptC . stateC
+getC = mapInput bs (Just . ByteChunk) . transPipe C . exceptC . stateC
 {-# INLINE getC #-}
 
 -- | Wait for a single input value from upstream. If no data is available, returns 'Nothing'.
 -- Once await returns 'Nothing', subsequent calls will also return 'Nothing'.
--- getInp is 'await' with injected inner 'decodingGot'.
-getInp :: Monad m => Get o e m (Maybe S.ByteString)
-getInp = do
+-- getChunk is 'await' with injected inner 'decodingGot'.
+getChunk :: Monad m => Get o e m (Maybe S.ByteString)
+getChunk = do
   !mi <- await
   case mi of
     Nothing -> return Nothing
-    Just (GetInp !i) -> do
+    Just (ByteChunk !i) -> do
       lift $ C $ lift $ modify' $ decodingGot i
       return $ Just i
-{-# INLINE getInp #-}
+{-# INLINE getChunk #-}
 
 -- | Provide a single piece of leftover input to be consumed by the next component in the current monadic binding.
 -- Note: it is highly encouraged to only return leftover values from input already consumed from upstream.
--- ungetInp is 'leftover' with injected inner 'decodingUngot'.
-ungetInp :: Monad m => S.ByteString -> Get o e m ()
-ungetInp !i = do
-  leftover $ GetInp i
+-- ungetChunk is 'leftover' with injected inner 'decodingUngot'.
+ungetChunk :: Monad m => S.ByteString -> Get o e m ()
+ungetChunk !i = do
+  leftover $ ByteChunk i
   lift $ C $ lift $ modify' $ decodingUngot $ fromIntegral $ SB.length i
-{-# INLINE ungetInp #-}
+{-# INLINE ungetChunk #-}
 
 -- | Send a value downstream to the next component to consume. If the downstream component terminates,
--- this call will never return control. If you would like to register a cleanup function, please use 'yieldInpOr' instead.
--- yieldInp is 'yield' with injected conversion from 'GetInp' to 'S.ByteString'.
-yieldInp :: Monad m => S.ByteString -> ConduitM i GetInp m ()
-yieldInp = yield . GetInp
-{-# INLINE yieldInp #-}
+-- this call will never return control. If you would like to register a cleanup function, please use 'yieldChunkOr' instead.
+-- yieldChunk is 'yield' with injected conversion from 'ByteChunk' to 'S.ByteString'.
+yieldChunk :: Monad m => S.ByteString -> ConduitM i ByteChunk m ()
+yieldChunk = yield . ByteChunk
+{-# INLINE yieldChunk #-}
 
--- | Similar to 'yieldInp', but additionally takes a finalizer to be run if the downstream component terminates.
--- yieldInpOr is 'yieldOr' with injected conversion from 'GetInp' to 'S.ByteString'.
-yieldInpOr :: Monad m
+-- | Similar to 'yieldChunk', but additionally takes a finalizer to be run if the downstream component terminates.
+-- yieldChunkOr is 'yieldOr' with injected conversion from 'ByteChunk' to 'S.ByteString'.
+yieldChunkOr :: Monad m
   => S.ByteString
   -> m () -- ^ Finalizer.
-  -> ConduitM i GetInp m ()
-yieldInpOr !o = yieldOr (GetInp o)
-{-# INLINE yieldInpOr #-}
+  -> ConduitM i ByteChunk m ()
+yieldChunkOr !o = yieldOr (ByteChunk o)
+{-# INLINE yieldChunkOr #-}
 
 -- | Convert decoder error. If the decoder fails, the given function will be applied
 -- to the error message.

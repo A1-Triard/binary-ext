@@ -32,14 +32,14 @@ module Data.Binary.Ext.Get
   , decodingGot
   , decodingUngot
   , GetC
-  , GetInp
+  , ByteChunk
   , Get
   , runGetC
   , getC
-  , getInp
-  , ungetInp
-  , yieldInp
-  , yieldInpOr
+  , getChunk
+  , ungetChunk
+  , yieldChunk
+  , yieldChunkOr
   , mapError
   , runGet
   , bytesRead
@@ -103,9 +103,9 @@ castGet :: Monad m => S.Get a -> Get o String m a
 castGet !g =
   go (S.runGetIncremental g)
   where
-    go (S.Done !t _ !r) = ungetInp t >> return r
-    go (S.Fail !t _ !e) = ungetInp t >> throwError e
-    go (S.Partial !c) = go =<< c <$> getInp
+    go (S.Done !t _ !r) = ungetChunk t >> return r
+    go (S.Fail !t _ !e) = ungetChunk t >> throwError e
+    go (S.Partial !c) = go =<< c <$> getChunk
 {-# INLINE castGet #-}
 
 -- | 'True' if there are no input elements left.
@@ -114,8 +114,8 @@ getNull :: Monad m => Get o e m Bool
 getNull =
   untilJust $ maybe
     (return $ Just True)
-    (\i -> if SB.null i then return Nothing else ungetInp i >> return (Just False))
-    =<< getInp
+    (\i -> if SB.null i then return Nothing else ungetChunk i >> return (Just False))
+    =<< getChunk
 {-# INLINE getNull #-}
 
 -- | 'onError' is 'mapError' with its arguments flipped.
@@ -151,7 +151,7 @@ skip !n = do
       | consumed > n = error "Data.Binary.Ext.Get.skip"
       | consumed == n = return n
       | otherwise = do
-        !mi <- getInp
+        !mi <- getChunk
         case mi of
           Nothing -> return consumed
           Just !i -> do
@@ -160,7 +160,7 @@ skip !n = do
                 then do
                   go $ consumed + fromIntegral (SB.length i)
                 else do
-                  ungetInp $ SB.drop (fromIntegral gap) i
+                  ungetChunk $ SB.drop (fromIntegral gap) i
                   return n
 {-# INLINE skip #-}
 
@@ -186,19 +186,19 @@ isolate !n unexpected_eof f !g = do
       | consumed > n = error "Data.Binary.Ext.Get.isolate"
       | consumed == n = return ()
       | otherwise = do
-          !mi <- getInp
+          !mi <- getChunk
           case mi of
             Nothing -> throwError unexpected_eof
             Just !i -> do
               let !gap = n - consumed
               if gap >= fromIntegral (SB.length i)
                 then do
-                  yieldInp i
+                  yieldChunk i
                   go $ consumed + fromIntegral (SB.length i)
                 else do
                   let (!h, !t) = SB.splitAt (fromIntegral gap) i
-                  yieldInp h
-                  ungetInp t
+                  yieldChunk h
+                  ungetChunk t
 {-# INLINE isolate #-}
 
 -- | An efficient get method for strict 'S.ByteString's. Fails if fewer than @n@
@@ -210,10 +210,10 @@ getByteString !n = do
     go consumed
       | SB.length consumed >= n = do
         let (!h, !t) = SB.splitAt n consumed
-        if SB.null t then return () else ungetInp t
+        if SB.null t then return () else ungetChunk t
         return h
       | otherwise = do
-        !mi <- getInp
+        !mi <- getChunk
         case mi of
           Nothing -> throwError ()
           Just !i -> go $ consumed <> i
@@ -229,10 +229,10 @@ getLazyByteString n = do
     go consumed
       | B.length consumed >= n = do
         let (!h, !t) = B.splitAt n consumed
-        if B.null t then return () else forM_ (reverse B.toChunks t) ungetInp
+        if B.null t then return () else forM_ (reverse B.toByteChunks t) ungetChunk
         return h
       | otherwise = do
-        !mi <- getInp
+        !mi <- getChunk
         case mi of
           Nothing -> throwError ()
           Just !i -> go $ consumed <> i
