@@ -44,7 +44,7 @@ module Data.Binary.Ext.Get
   , runGet
   , bytesRead
   , castGet
-  , getNull
+  , endOfInput
   , onError
   , withError
   , ifError
@@ -111,13 +111,13 @@ castGet !g =
 
 -- | 'True' if there are no input elements left.
 -- This function may remove empty leading chunks from the stream, but otherwise will not modify it.
-getNull :: Monad m => Get o e m Bool
-getNull =
+endOfInput :: Monad m => Get o e m Bool
+endOfInput =
   untilJust $ maybe
     (return $ Just True)
     (\i -> if SB.null i then return Nothing else ungetChunk i >> return (Just False))
     =<< getChunk
-{-# INLINE getNull #-}
+{-# INLINE endOfInput #-}
 
 -- | 'onError' is 'mapError' with its arguments flipped.
 onError :: Monad m => Get o e m a -> (e -> e') -> Get o e' m a

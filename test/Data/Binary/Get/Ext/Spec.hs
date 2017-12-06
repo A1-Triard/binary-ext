@@ -78,7 +78,7 @@ testInput6 =
 
 ensureEof :: Monad m => e -> Get o e m ()
 ensureEof e = do
-  eof <- getNull
+  eof <- endOfInput
   if eof then return () else throwError e
 
 get1 :: Monad m => Get Word16 Bool m ()
