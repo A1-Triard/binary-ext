@@ -14,6 +14,9 @@
 -- limitations under the License.
 --
 
+-- | This module provides the 'GetC' monad transformer,
+-- and all functions, which could not be defined using 'GetC' public interface only.
+
 module Data.Binary.Conduit.Get.GetC
   ( Decoding
   , startDecoding
@@ -29,9 +32,6 @@ module Data.Binary.Conduit.Get.GetC
   , ungetChunk
   , mapError
   ) where
-
--- | This module provides the 'GetC' monad transformer,
--- and all functions, which could not be defined using 'GetC' public interface only.
 
 #include <haskell>
 
