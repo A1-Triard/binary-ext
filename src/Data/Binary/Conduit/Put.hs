@@ -29,7 +29,6 @@ module Data.Binary.Conduit.Put
   , putC
   , putChunk
   , putChunkOr
-  , mapError
   ) where
 
 #include <haskell>
