@@ -245,6 +245,9 @@ getLazyByteStringNul =
       then go r
       else ungetChunk (SB.drop 1 t) >> return r
 
+-- | Get the remaining bytes as a lazy 'ByteString'.
+-- Note that this can be an expensive function to use as it
+-- forces reading all input and keeping the string in-memory.
 getRemainingLazyByteString :: Monad m => Get o e m ByteString
 getRemainingLazyByteString =
   go B.empty
