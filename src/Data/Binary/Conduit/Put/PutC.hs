@@ -45,8 +45,8 @@ startEncoding :: Word64 -> Encoding
 startEncoding !bytes_read_before = Encoding { encodingBytesWrote = bytes_read_before }
 {-# INLINE startEncoding #-}
 
--- | Modify 'PutC' state: mark byte string @inp@ as wrote.
--- See 'putC' for usage example.
+-- | Modify 'PutC' state: increase wrote bytes count by @bytes_count@.
+-- Supposed to use with 'putC'.
 encodingPut :: Word64 -> Encoding -> Encoding
 encodingPut !bytes_count !s = Encoding { encodingBytesWrote = encodingBytesWrote s + bytes_count }
 {-# INLINE encodingPut #-}
