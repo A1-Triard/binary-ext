@@ -35,6 +35,8 @@ module Data.Binary.Conduit.Get.GetC
 
 #include <haskell>
 
+import Data.Binary.Conduit.Base
+
 -- | 'GetC' monad state.
 data Decoding = Decoding
   { decodingBytesRead :: !Word64 -- ^ Get the total number of bytes read to this point.
@@ -105,17 +107,6 @@ instance MonadBaseControl b m => MonadBaseControl b (GetC e m) where
   {-# INLINE liftBaseWith #-}
   restoreM = defaultRestoreM
   {-# INLINE restoreM #-}
-
--- | A wrapped 'S.ByteString'.
--- There is no direct conversion between 'S.ByteString' and 'ByteChunk'.
--- Use 'getInt' instead of 'await' and 'ungetChunk' instead of 'leftover'
--- to get unwrapped 'S.ByteString' instead of 'ByteChunk'.
-newtype ByteChunk = ByteChunk { bs :: S.ByteString }
-type instance Element ByteChunk = Word8
-deriving instance Show ByteChunk
-deriving instance Semigroup ByteChunk
-deriving instance Monoid ByteChunk
-deriving instance MonoFunctor ByteChunk
 
 -- | A 'ConduitM' with internal transformers supposed to a binary deserialization.
 type Get o e m = ConduitM ByteChunk o (GetC e m)
