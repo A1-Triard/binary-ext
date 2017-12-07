@@ -28,8 +28,6 @@ module Data.Binary.Ext.Get.GetC
   , getC
   , getChunk
   , ungetChunk
-  , yieldChunk
-  , yieldChunkOr
   , mapError
   ) where
 
@@ -186,22 +184,6 @@ ungetChunk !i = do
   leftover $ ByteChunk i
   lift $ C $ lift $ modify' $ decodingUngot $ fromIntegral $ SB.length i
 {-# INLINE ungetChunk #-}
-
--- | Send a value downstream to the next component to consume. If the downstream component terminates,
--- this call will never return control. If you would like to register a cleanup function, please use 'yieldChunkOr' instead.
--- yieldChunk is 'yield' with injected conversion from 'ByteChunk' to 'S.ByteString'.
-yieldChunk :: Monad m => S.ByteString -> ConduitM i ByteChunk m ()
-yieldChunk = yield . ByteChunk
-{-# INLINE yieldChunk #-}
-
--- | Similar to 'yieldChunk', but additionally takes a finalizer to be run if the downstream component terminates.
--- yieldChunkOr is 'yieldOr' with injected conversion from 'ByteChunk' to 'S.ByteString'.
-yieldChunkOr :: Monad m
-  => S.ByteString
-  -> m () -- ^ Finalizer.
-  -> ConduitM i ByteChunk m ()
-yieldChunkOr !o = yieldOr (ByteChunk o)
-{-# INLINE yieldChunkOr #-}
 
 -- | Convert decoder error. If the decoder fails, the given function will be applied
 -- to the error message.

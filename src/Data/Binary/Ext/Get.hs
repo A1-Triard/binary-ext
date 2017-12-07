@@ -38,8 +38,6 @@ module Data.Binary.Ext.Get
   , getC
   , getChunk
   , ungetChunk
-  , yieldChunk
-  , yieldChunkOr
   , mapError
   , runGet
   , bytesRead
