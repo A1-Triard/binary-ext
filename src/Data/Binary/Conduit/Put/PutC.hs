@@ -48,7 +48,7 @@ startEncoding !bytes_read_before = Encoding { encodingBytesWrote = bytes_read_be
 -- | Modify 'PutC' state: mark byte string @inp@ as wrote.
 -- See 'putC' for usage example.
 encodingPut :: Word64 -> Encoding -> Encoding
-encodingPut !bytes_count !s = Encoding{ encodingBytesWrote = encodingBytesWrote s + bytes_count }
+encodingPut !bytes_count !s = Encoding { encodingBytesWrote = encodingBytesWrote s + bytes_count }
 {-# INLINE encodingPut #-}
 
 -- | Internal transformers for 'Put' with error type @e@, host monad @m@ and encoder result @a@.
