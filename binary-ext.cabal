@@ -18,6 +18,7 @@ library
   exposed-modules: Data.Binary.Conduit.Get
                  , Data.Binary.Conduit.Put
   other-modules: Data.Binary.Conduit.Get.GetC
+               , Data.Binary.Conduit.Put.PutC
                , Data.Binary.Conduit.Base
   build-depends: base >= 4.7 && < 5
                , binary

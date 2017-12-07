@@ -111,7 +111,7 @@ instance MonadBaseControl b m => MonadBaseControl b (GetC e m) where
 -- | A 'ConduitM' with internal transformers supposed to a binary deserialization.
 type Get o e m = ConduitM ByteChunk o (GetC e m)
 
-instance MonadBase b m => MonadBase b (ConduitM ByteChunk o (GetC e m)) where
+instance MonadBase b m => MonadBase b (Get o e m) where
   liftBase = liftBaseDefault
   {-# INLINE liftBase #-}
 
