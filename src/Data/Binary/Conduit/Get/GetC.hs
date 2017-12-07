@@ -66,12 +66,8 @@ decodingUngot !bytes_count !s = Decoding
   }
 {-# INLINE decodingUngot #-}
 
--- | Internal transformers for 'Get'.
-newtype GetC
-  e -- ^ Error type.
-  m -- ^ Host monad type.
-  a -- ^ Decoder result type.
-  = C { runC :: ExceptT e (StateT Decoding m) a }
+-- | Internal transformers for 'Get' with error type @e@, host monad @m@ and decoder result @a@.
+newtype GetC e m a = C { runC :: ExceptT e (StateT Decoding m) a }
 
 instance MonadTrans (GetC e) where
   lift = C . lift . lift
@@ -89,15 +85,20 @@ deriving instance Monad m => MonadError e (GetC e m)
 instance MonadTransControl (GetC e) where
   type StT (GetC e) a = StT (StateT Decoding) (StT (ExceptT e) a)
   liftWith = defaultLiftWith2 C runC
+  {-# INLINE liftWith #-}
   restoreT = defaultRestoreT2 C
+  {-# INLINE restoreT #-}
 
 instance MonadBase b m => MonadBase b (GetC e m) where
   liftBase = liftBaseDefault
+  {-# INLINE liftBase #-}
 
 instance MonadBaseControl b m => MonadBaseControl b (GetC e m) where
   type StM (GetC e m) a = ComposeSt (GetC e) m a
   liftBaseWith = defaultLiftBaseWith
+  {-# INLINE liftBaseWith #-}
   restoreM = defaultRestoreM
+  {-# INLINE restoreM #-}
 
 -- | A wrapped 'S.ByteString'.
 -- There is no direct conversion between 'S.ByteString' and 'ByteChunk'.
@@ -115,6 +116,7 @@ type Get o e m = ConduitM ByteChunk o (GetC e m)
 
 instance MonadBase b m => MonadBase b (ConduitM ByteChunk o (GetC e m)) where
   liftBase = liftBaseDefault
+  {-# INLINE liftBase #-}
 
 instance (Monoid e, Monad m) => Alternative (Get o e m) where
   empty = throwError mempty

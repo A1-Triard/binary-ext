@@ -14,4 +14,11 @@
 -- limitations under the License.
 --
 
+-- | At the first look, Data.Binary.Conduit.Put module is very similar with Data.Binary.Put.
+-- The main differences between them are the following.
+-- While the 'S.Put' from binary is a very custom type,
+-- the local 'Put' is 'ConduitM', which leads to easy integration in complicated format parsing.
+-- Despite binary's 'S.Put' is fully-functional construction (unlike 'S.Get'),
+-- we decided to provide this module for symmetry with 'Data.Binary.Conduit.Get'.
+
 module Data.Binary.Conduit.Put where
