@@ -38,7 +38,7 @@ import Data.Binary.Conduit.Base
 
 -- | 'PutC' monad state.
 newtype Encoding = Encoding
-  { encodingBytesWrote :: Word64 -- ^ Put the total number of bytes read to this point.
+  { encodingBytesWrote :: Word64 -- ^ Get the total number of bytes wrote to this point.
   } deriving Show
 
 -- | Construct 'PutC' initial state.
@@ -46,7 +46,7 @@ startEncoding :: Word64 -> Encoding
 startEncoding !bytes_read_before = Encoding { encodingBytesWrote = bytes_read_before }
 {-# INLINE startEncoding #-}
 
--- | Modify 'PutC' state: mark byte string @inp@ as read.
+-- | Modify 'PutC' state: mark byte string @inp@ as wrote.
 -- See 'putC' for usage example.
 encodingPut :: Word64 -> Encoding -> Encoding
 encodingPut !bytes_count !s = Encoding{ encodingBytesWrote = encodingBytesWrote s + bytes_count }
@@ -86,7 +86,7 @@ instance MonadBaseControl b m => MonadBaseControl b (PutC e m) where
   restoreM = defaultRestoreM
   {-# INLINE restoreM #-}
 
--- | A 'ConduitM' with internal transformers supposed to a binary deserialization.
+-- | A 'ConduitM' with internal transformers supposed to a binary serialization.
 type Put i e m = ConduitM i ByteChunk (PutC e m)
 
 instance MonadBase b m => MonadBase b (Put i e m) where
@@ -101,39 +101,27 @@ runPutC !encoding = runStateC encoding . runExceptC . transPipe runC . mapOutput
 
 -- | Custom 'Put'.
 -- @putC . 'flip' 'runPutC' = 'id'@
--- Example:
--- > skipUntilZero :: Monad m => Put i e m ()
--- > skipUntilZero = putC $ flip runStateC $ do
--- >   untilM_ (return ()) $ do
--- >     !m_inp <- await
--- >     case m_inp of
--- >       Nothing -> return True
--- >       Just !inp -> do
--- >         lift $ modify' $ encodingGot inp
--- >         case SB.elemIndex 0 inp of
--- >           Nothing -> return ()
--- >           Just !i -> do
--- >             let (!h, !t) = SB.splitAt i inp
--- >             leftover t
--- >             lift $ modify' $ encodingUngot $ SB.length t
--- Please note, the above code is just a sample, and this particular function can be defined in easy way without putC.
 putC :: Monad m => (Encoding -> ConduitM i S.ByteString m (Either e a, Encoding)) -> Put i e m a
 putC = mapOutput ByteChunk . transPipe C . exceptC . stateC
 {-# INLINE putC #-}
 
--- | Wait for a single input value from upstream. If no data is available, returns 'Nothing'.
--- Once await returns 'Nothing', subsequent calls will also return 'Nothing'.
--- putChunk is 'await' with injected inner 'encodingGot'.
+-- | Send a value downstream to the next component to consume.
+-- If the downstream component terminates, this call will never return control.
+-- If you would like to register a cleanup function, please use 'putChunkOr' instead.
+-- putChunk is 'yield' with injected inner 'encodingPut'.
 putChunk :: Monad m => S.ByteString -> Put i e m ()
 putChunk !o = do
   lift $ C $ lift $ modify' $ encodingPut $ fromIntegral $ SB.length o
   yield $ ByteChunk o
 {-# INLINE putChunk #-}
 
--- | Wait for a single input value from upstream. If no data is available, returns 'Nothing'.
--- Once await returns 'Nothing', subsequent calls will also return 'Nothing'.
--- putChunk is 'await' with injected inner 'encodingGot'.
-putChunkOr :: Monad m => S.ByteString -> PutC e m () -> Put i e m ()
+-- | Similar to 'putChunk', but additionally takes a finalizer to be run
+-- if the downstream component terminates.
+-- putChunkOr is 'yieldOr' with injected inner 'encodingPut'.
+putChunkOr :: Monad m
+  => S.ByteString
+  -> PutC e m () -- ^ Finalizer.
+  -> Put i e m ()
 putChunkOr !o f = do
   lift $ C $ lift $ modify' $ encodingPut $ fromIntegral $ SB.length o
   yieldOr (ByteChunk o) f
