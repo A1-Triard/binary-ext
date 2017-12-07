@@ -50,6 +50,7 @@ module Data.Binary.Conduit.Get
   , isolate
   , getByteString
   , getLazyByteString
+  , getLazyByteStringNul
   , getWord8
   , getInt8
   , getWord16be
@@ -184,19 +185,16 @@ isolate !n unexpected_eof f !g = do
       | consumed > n = error "Data.Binary.Conduit.Get.isolate"
       | consumed == n = return ()
       | otherwise = do
-          !mi <- await
-          case mi of
-            Nothing -> throwError unexpected_eof
-            Just !i -> do
-              let !gap = n - consumed
-              if gap >= fromIntegral (SB.length i)
-                then do
-                  yield i
-                  go $ consumed + fromIntegral (SB.length i)
-                else do
-                  let (!h, !t) = SB.splitAt (fromIntegral gap) i
-                  yield h
-                  leftover t
+          !i <- maybe (throwError unexpected_eof) return =<< await
+          let !gap = n - consumed
+          if gap >= fromIntegral (SB.length i)
+            then do
+              yield i
+              go $ consumed + fromIntegral (SB.length i)
+            else do
+              let (!h, !t) = SB.splitAt (fromIntegral gap) i
+              yield h
+              leftover t
 {-# INLINE isolate #-}
 
 -- | An efficient get method for strict 'S.ByteString's. Fails if fewer than @n@
@@ -211,10 +209,8 @@ getByteString !n = do
         if SB.null t then return () else ungetChunk t
         return h
       | otherwise = do
-        !mi <- getChunk
-        case mi of
-          Nothing -> throwError ()
-          Just !i -> go $ consumed <> i
+        !i <- maybe (throwError ()) return =<< getChunk
+        go $ consumed <> i
 {-# INLINE getByteString #-}
 
 -- | An efficient get method for lazy 'ByteString's. Fails if fewer than @n@
@@ -229,14 +225,23 @@ getLazyByteString n = do
         if B.null t then return () else forM_ (reverse $ B.toChunks t) ungetChunk
         return h
       | otherwise = do
-        !mi <- getChunk
-        case mi of
-          Nothing -> throwError ()
-          Just !i -> go $ consumed <> B.fromStrict i
+        !i <- maybe (throwError ()) return =<< getChunk
+        go $ consumed <> B.fromStrict i
 {-# INLINE getLazyByteString #-}
 
+getLazyByteStringNul :: Monad m => Get o () m ByteString
+getLazyByteStringNul =
+  go B.empty
+  where
+  go consumed = do
+    !i <- maybe (throwError ()) return =<< getChunk
+    let (h, t) = SB.span (/= 0) i
+    let r = consumed <> B.fromStrict h
+    if SB.length t == 0
+      then go r
+      else ungetChunk (SB.drop 1 t) >> return r
+
 {-
-    , getLazyByteStringNul
     , getRemainingLazyByteString
 -}
 
