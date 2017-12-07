@@ -21,4 +21,21 @@
 -- Despite binary's 'S.Put' is fully-functional construction (unlike 'S.Get'),
 -- we decided to provide this module for symmetry with 'Data.Binary.Conduit.Get'.
 
-module Data.Binary.Conduit.Put where
+module Data.Binary.Conduit.Put
+  ( Encoding
+  , startEncoding
+  , encodingBytesWrote
+  , encodingPut
+  , PutC
+  , ByteChunk
+  , Put
+  , runPutC
+  , putC
+  , putChunk
+  , putChunkOr
+  , mapError
+  ) where
+
+#include <haskell>
+
+import Data.Binary.Conduit.Put.PutC
