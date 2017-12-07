@@ -14,7 +14,7 @@
 -- limitations under the License.
 --
 
-module Data.Binary.Ext.Get.GetC
+module Data.Binary.Conduit.Get.GetC
   ( Decoding
   , startDecoding
   , decodingBytesRead
@@ -37,7 +37,7 @@ data Decoding = Decoding { decodingBytesRead :: !Word64, tracking :: !(Maybe [S.
 
 dropBytes :: Word64 -> [S.ByteString] -> [S.ByteString]
 dropBytes 0 !x = x
-dropBytes _ [] = error "Data.Binary.Ext.Get.dropBytes"
+dropBytes _ [] = error "Data.Binary.Conduit.Get.dropBytes"
 dropBytes !n !(h : t)
   | fromIntegral (SB.length h) <= n = dropBytes (n - fromIntegral (SB.length h)) t
   | otherwise = SB.take (SB.length h - fromIntegral n) h : t
@@ -125,7 +125,7 @@ instance (Monoid e, Monad m) => Alternative (Get o e m) where
 transaction :: Monad m => Get o e m a -> Get o e m a
 transaction !g = getC $ \ !c -> do
   (!r, !f) <- runGetC (Decoding { decodingBytesRead = decodingBytesRead c, tracking = Just [] }) g
-  let !tracking_f = fromMaybe (error "Data.Binary.Ext.Get.track") $ tracking f
+  let !tracking_f = fromMaybe (error "Data.Binary.Conduit.Get.GetC.transaction") $ tracking f
   if isRight r
     then  return (r, Decoding { decodingBytesRead = decodingBytesRead f, tracking = (tracking_f ++) <$> tracking c })
     else forM_ tracking_f leftover >> return (r, c)

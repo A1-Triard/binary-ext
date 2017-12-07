@@ -14,14 +14,14 @@
 -- limitations under the License.
 --
 
-module Data.Binary.Get.Ext.Spec
+module Data.Binary.Conduit.Get.Spec
   ( tests
   ) where
 
 #define TESTS
 #include <haskell>
 
-import Data.Binary.Ext.Get
+import Data.Binary.Conduit.Get
 
 tests :: Test
 tests = TestList

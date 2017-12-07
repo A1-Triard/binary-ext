@@ -15,9 +15,9 @@ cabal-version: >=1.10
 
 library
   hs-source-dirs: src
-  exposed-modules: Data.Binary.Ext.Get
-                 , Data.Binary.Ext.Put
-  other-modules: Data.Binary.Ext.Get.GetC
+  exposed-modules: Data.Binary.Conduit.Get
+                 , Data.Binary.Conduit.Put
+  other-modules: Data.Binary.Conduit.Get.GetC
   build-depends: base >= 4.7 && < 5
                , binary
                , bytestring
@@ -78,7 +78,7 @@ test-suite binary-te-test
   type: exitcode-stdio-1.0
   hs-source-dirs: test
   main-is: Spec.hs
-  other-modules: Data.Binary.Get.Ext.Spec
+  other-modules: Data.Binary.Conduit.Get.Spec
   build-depends: base
                , HUnit
                , binary-te

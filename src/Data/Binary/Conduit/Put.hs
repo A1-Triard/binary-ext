@@ -14,4 +14,4 @@
 -- limitations under the License.
 --
 
-module Data.Binary.Ext.Put where
+module Data.Binary.Conduit.Put where

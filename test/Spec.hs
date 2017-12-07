@@ -17,12 +17,12 @@
 #define TESTS
 #include <haskell>
 
-import qualified Data.Binary.Get.Ext.Spec
+import qualified Data.Binary.Conduit.Get.Spec
 
 main :: IO ()
 main = void $ runTestTT tests
 
 tests :: Test
 tests = TestList
-  [ Data.Binary.Get.Ext.Spec.tests
+  [ Data.Binary.Conduit.Get.Spec.tests
   ]

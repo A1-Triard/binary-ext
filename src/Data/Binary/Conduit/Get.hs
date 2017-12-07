@@ -14,7 +14,7 @@
 -- limitations under the License.
 --
 
--- | At the first look, Data.Binary.Ext.Get module is very similar with Data.Binary.Get.
+-- | At the first look, Data.Binary.Conduit.Get module is very similar with Data.Binary.Get.
 -- The main differences between them are the following.
 -- While the 'S.Get' from binary is a very custom monad,
 -- the local 'Get' is 'ConduitM', which leads to easy integration in complicated format parsing.
@@ -24,7 +24,7 @@
 -- While the binary's 'S.Get' is 'MonadFail', which leads to very ugly errors handling
 -- in complicated cases, local 'Get' is 'MonadError'.
 
-module Data.Binary.Ext.Get
+module Data.Binary.Conduit.Get
   ( Decoding
   , startDecoding
   , decodingBytesRead
@@ -82,7 +82,7 @@ module Data.Binary.Ext.Get
 
 #include <haskell>
 
-import Data.Binary.Ext.Get.GetC
+import Data.Binary.Conduit.Get.GetC
 
 -- | Run a decoder presented as a 'Get' monad.
 -- Returns decoder result and consumed bytes count.
@@ -146,7 +146,7 @@ skip !n = do
     else return ()
   where
     go consumed
-      | consumed > n = error "Data.Binary.Ext.Get.skip"
+      | consumed > n = error "Data.Binary.Conduit.Get.skip"
       | consumed == n = return n
       | otherwise = do
         !mi <- getChunk
@@ -181,7 +181,7 @@ isolate !n unexpected_eof f !g = do
     else return r
   where
     go consumed
-      | consumed > n = error "Data.Binary.Ext.Get.isolate"
+      | consumed > n = error "Data.Binary.Conduit.Get.isolate"
       | consumed == n = return ()
       | otherwise = do
           !mi <- await
