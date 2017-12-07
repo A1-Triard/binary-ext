@@ -15,8 +15,7 @@
 --
 
 module Data.Binary.Ext.Get.GetC
-  ( ByteOffset
-  , Decoding
+  ( Decoding
   , startDecoding
   , decodingBytesRead
   , decodingGot
@@ -33,13 +32,10 @@ module Data.Binary.Ext.Get.GetC
 
 #include <haskell>
 
--- | An offset, counted in bytes.
-type ByteOffset = Word64
-
 -- | 'GetC' monad state.
-data Decoding = Decoding { decodingBytesRead :: !ByteOffset, tracking :: !(Maybe [S.ByteString]) } deriving Show
+data Decoding = Decoding { decodingBytesRead :: !Word64, tracking :: !(Maybe [S.ByteString]) } deriving Show
 
-dropBytes :: ByteOffset -> [S.ByteString] -> [S.ByteString]
+dropBytes :: Word64 -> [S.ByteString] -> [S.ByteString]
 dropBytes 0 !x = x
 dropBytes _ [] = error "Data.Binary.Ext.Get.dropBytes"
 dropBytes !n !(h : t)
@@ -48,7 +44,7 @@ dropBytes !n !(h : t)
 {-# INLINE dropBytes #-}
 
 -- | Construct 'GetC' initial state.
-startDecoding :: ByteOffset -> Decoding
+startDecoding :: Word64 -> Decoding
 startDecoding !bytes_read_before = Decoding { decodingBytesRead = bytes_read_before, tracking = Nothing }
 {-# INLINE startDecoding #-}
 
@@ -63,7 +59,7 @@ decodingGot !inp !s = Decoding
 
 -- | Modify 'GetC' state: mark last read @bytes_count@ as unread.
 -- See 'getC' for usage example.
-decodingUngot :: ByteOffset -> Decoding -> Decoding
+decodingUngot :: Word64 -> Decoding -> Decoding
 decodingUngot !bytes_count !s = Decoding
   { decodingBytesRead = decodingBytesRead s - fromIntegral bytes_count
   , tracking = dropBytes bytes_count <$> tracking s

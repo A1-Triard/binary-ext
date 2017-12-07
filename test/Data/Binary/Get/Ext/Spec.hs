@@ -97,7 +97,7 @@ get1 = do
   yield =<< getWord16be `ifError` False
   ensureEof True
 
-get2 :: Monad m => Get o () m ByteOffset
+get2 :: Monad m => Get o () m Word64
 get2 = do
   skip 3
   bytesRead

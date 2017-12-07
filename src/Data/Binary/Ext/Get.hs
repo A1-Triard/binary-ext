@@ -25,8 +25,7 @@
 -- in complicated cases, local 'Get' is 'MonadError'.
 
 module Data.Binary.Ext.Get
-  ( ByteOffset
-  , Decoding
+  ( Decoding
   , startDecoding
   , decodingBytesRead
   , decodingGot
@@ -87,12 +86,12 @@ import Data.Binary.Ext.Get.GetC
 
 -- | Run a decoder presented as a 'Get' monad.
 -- Returns decoder result and consumed bytes count.
-runGet :: Monad m => Get o e m a -> ConduitM S.ByteString o m (Either e a, ByteOffset)
+runGet :: Monad m => Get o e m a -> ConduitM S.ByteString o m (Either e a, Word64)
 runGet !g = (\(!r, !s) -> (r, decodingBytesRead s)) <$> runGetC (startDecoding 0) g
 {-# INLINE runGet #-}
 
 -- | Get the total number of bytes read to this point.
-bytesRead :: Monad m => Get o e m ByteOffset
+bytesRead :: Monad m => Get o e m Word64
 bytesRead = getC $ \ !x -> return (Right $ decodingBytesRead x, x)
 {-# INLINE bytesRead #-}
 
@@ -139,7 +138,7 @@ voidError = mapError (const ())
 {-# INLINE voidError #-}
 
 -- | Skip ahead @n@ bytes. Fails if fewer than @n@ bytes are available.
-skip :: Monad m => ByteOffset -> Get o () m ()
+skip :: Monad m => Word64 -> Get o () m ()
 skip !n = do
   !consumed <- go 0
   if consumed < n
@@ -168,9 +167,9 @@ skip !n = do
 -- Unlike 'Data.Binary.Get.isolate' from binary package,
 -- offset from 'bytesRead' will NOT be relative to the start of 'isolate'.
 isolate :: Monad m
-  => ByteOffset -- ^ The number of bytes that must be consumed.
+  => Word64 -- ^ The number of bytes that must be consumed.
   -> e -- ^ The error if if fewer than @n@ bytes are available.
-  -> (ByteOffset -> e) -- ^ The error if fewer than @n@ bytes were consumed.
+  -> (Word64 -> e) -- ^ The error if fewer than @n@ bytes were consumed.
   -> Get o e m a -- ^ The decoder to isolate.
   -> Get o e m a
 isolate !n unexpected_eof f !g = do
