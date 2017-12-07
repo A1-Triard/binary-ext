@@ -30,10 +30,16 @@ module Data.Binary.Conduit.Get.GetC
   , mapError
   ) where
 
+-- | This module provides the 'GetC' monad transformer,
+-- and all functions, which could not be defined using 'GetC' public interface only.
+
 #include <haskell>
 
 -- | 'GetC' monad state.
-data Decoding = Decoding { decodingBytesRead :: !Word64, tracking :: !(Maybe [S.ByteString]) } deriving Show
+data Decoding = Decoding
+  { decodingBytesRead :: !Word64 -- ^ Get the total number of bytes read to this point.
+  , tracking :: !(Maybe [S.ByteString])
+  } deriving Show
 
 dropBytes :: Word64 -> [S.ByteString] -> [S.ByteString]
 dropBytes 0 !x = x
