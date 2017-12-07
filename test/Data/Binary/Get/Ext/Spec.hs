@@ -34,6 +34,8 @@ tests = TestList
   , TestCase testIsolateOverAlternativeIsolateExactly
   , TestCase testIsolateOverAlternativeIsolateEnough
   , TestCase testIsolateOverAlternativeIsolateEnoughButEof
+  , TestCase testIsolateIsolateEnoughButEof
+  , TestCase testIsolateIsolateEnoughButEofEarly
   , TestCase testAlternativeRollback
   ]
 
@@ -74,6 +76,13 @@ testInput6 :: [S.ByteString]
 testInput6 =
   [ "\x01\x02\x03\x04\x05\x06"
   , "\x07\x08\x09\x0A\x0B\x0C"
+  ]
+
+testInput7 :: [S.ByteString]
+testInput7 =
+  [ "A"
+  , "B"
+  , "C"
   ]
 
 ensureEof :: Monad m => e -> Get o e m ()
@@ -161,7 +170,23 @@ testIsolateOverAlternativeIsolateEnoughButEof = do
     (!e, !c) = runIdentity $ N.yieldMany testInput4
       $$ runGet (isolate 4 (Left Nothing) (Left . Just) $ mapError Right $ Right <$> getInt32le <|> Left <$> getWord8)
   assertEqual "" (Left $ Left Nothing) e
-  assertEqual "" 3 c
+  assertEqual "" 0 c
+
+testIsolateIsolateEnoughButEof :: Assertion
+testIsolateIsolateEnoughButEof = do
+  let
+    (!e, !c) = runIdentity $ N.yieldMany testInput4
+      $$ runGet (isolate 4 (Left Nothing) (Left . Just) $ mapError Right getWord8)
+  assertEqual "" (Left $ Left $ Just 1) e
+  assertEqual "" 1 c
+
+testIsolateIsolateEnoughButEofEarly :: Assertion
+testIsolateIsolateEnoughButEofEarly = do
+  let
+    (!e, !c) = runIdentity $ N.yieldMany testInput7
+      $$ runGet (isolate 4 (Left Nothing) (Left . Just) $ mapError Right $ getWord8 >> getWord8 >> getWord8 >> getWord8)
+  assertEqual "" (Left $ Left Nothing) e
+  assertEqual "" 0 c
 
 testAlternativeRollback :: Assertion
 testAlternativeRollback = do
