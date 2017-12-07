@@ -51,6 +51,7 @@ module Data.Binary.Conduit.Get
   , getByteString
   , getLazyByteString
   , getLazyByteStringNul
+  , getRemainingLazyByteString
   , getWord8
   , getInt8
   , getWord16be
@@ -229,21 +230,30 @@ getLazyByteString n = do
         go $ consumed <> B.fromStrict i
 {-# INLINE getLazyByteString #-}
 
+-- | Get a lazy 'ByteString' that is terminated with a NUL byte.
+-- The returned string does not contain the NUL byte.
+-- Fails if it reaches the end of input without finding a NUL.
 getLazyByteStringNul :: Monad m => Get o () m ByteString
 getLazyByteStringNul =
   go B.empty
   where
   go consumed = do
     !i <- maybe (throwError ()) return =<< getChunk
-    let (h, t) = SB.span (/= 0) i
-    let r = consumed <> B.fromStrict h
+    let (!h, !t) = SB.span (/= 0) i
+    let !r = consumed <> B.fromStrict h
     if SB.length t == 0
       then go r
       else ungetChunk (SB.drop 1 t) >> return r
 
-{-
-    , getRemainingLazyByteString
--}
+getRemainingLazyByteString :: Monad m => Get o e m ByteString
+getRemainingLazyByteString =
+  go B.empty
+  where
+  go consumed = do
+    !mi <- getChunk
+    case mi of
+      Nothing -> return consumed
+      Just !i -> go $ consumed <> B.fromStrict i
 
 voidCastGet :: Monad m => S.Get a -> Get o () m a
 voidCastGet = voidError . castGet
