@@ -1,6 +1,11 @@
 binary-ext package
 ==================
 
+[![Hackage version](https://img.shields.io/hackage/v/binary-ext.svg)](https://hackage.haskell.org/package/binary-ext)
+[![Stackage version](https://www.stackage.org/package/binary-ext/badge/lts?label=stackage)](https://www.stackage.org/package/binary-ext)
+[![Stackage nightly version](https://www.stackage.org/package/binary-ext/badge/nightly?label=nightly)](https://www.stackage.org/package/binary-ext)
+[![Build status](https://secure.travis-ci.org/A1-Triard/binary-ext.png?branch=master)](http://travis-ci.org/A1-Triard/binary-ext)
+
 An alternate with typed errors for the `Data.Binary.Get` monad from the `binary` package
 and adapters from the `binary-conduit` package.
 
