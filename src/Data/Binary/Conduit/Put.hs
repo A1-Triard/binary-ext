@@ -29,8 +29,21 @@ module Data.Binary.Conduit.Put
   , putC
   , putChunk
   , putChunkOr
+  , runPut
+  , bytesWrote
   ) where
 
 #include <haskell>
 
 import Data.Binary.Conduit.Put.PutC
+
+-- | Run an encoder presented as a 'Put' monad.
+-- Returns encoder result and produced bytes count.
+runPut :: Monad m => Put i m a -> ConduitM i S.ByteString m (a, Word64)
+runPut !g = (\(!r, !s) -> (r, encodingBytesWrote s)) <$> runPutC (startEncoding 0) g
+{-# INLINE runPut #-}
+
+-- | Get the total number of bytes wrote to this point.
+bytesWrote :: Monad m => Put i m Word64
+bytesWrote = putC $ \ !x -> return (encodingBytesWrote x, x)
+{-# INLINE bytesWrote #-}
