@@ -87,7 +87,7 @@ module Data.Binary.Conduit.Get
 
 import Data.Binary.Conduit.Get.GetC
 
--- | The shortening of 'GetM' for most common use case.
+-- | The shortening of 'GetM' for the most common use case.
 type Get o e a = forall m. Monad m => GetM o e m a
 
 -- | Run a decoder presented as a 'Get' monad.

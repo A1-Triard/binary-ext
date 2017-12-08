@@ -38,6 +38,7 @@ tests = TestList
   , TestCase testIsolateIsolateEnoughButEofEarly
   , TestCase testAlternativeRollback
   , TestCase testRecords
+  , TestCase testLeftoversInIsolate
   ]
 
 testInput1 :: [S.ByteString]
@@ -219,3 +220,16 @@ testRecords = do
   assertEqual (show c) (Right ()) e
   assertEqual "" [[3978425819141910832, 3978425819141910832, 3978425819141910832], [3978425819141910832, 3978425819141910832], [3978425819141910832]] r
   assertEqual "" 48 c
+
+testLeftoversInIsolate :: Assertion
+testLeftoversInIsolate = do
+  let !i = isolate 4 (Left Nothing) (Left . Just) $ mapError Right $ (ungetChunk =<< getByteString 4) >> skip 2
+  let
+    !g = do
+      catchError i $ const $ return ()
+      !r <- getByteString 2 `ifError` Right ()
+      ensureEof $ Right ()
+      return r
+  let (!e, !c) = runIdentity $ yield "ABCD" $$ runGet g
+  assertEqual "" (Right "CD") e
+  assertEqual "" 4 c

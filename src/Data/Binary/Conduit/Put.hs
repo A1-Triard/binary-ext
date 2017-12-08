@@ -38,7 +38,7 @@ module Data.Binary.Conduit.Put
 
 import Data.Binary.Conduit.Put.PutC
 
--- | The shortening of 'PutM' for most common use case.
+-- | The shortening of 'PutM' for the most common use case.
 type Put i a = forall m. Monad m => PutM i m a
 
 -- | Run an encoder presented as a 'Put' monad.
