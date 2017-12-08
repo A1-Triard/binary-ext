@@ -32,6 +32,11 @@ module Data.Binary.Conduit.Put
   , runPut
   , bytesWrote
   , castPut
+  , putWord8
+  , putInt8
+  , putByteString
+  , putLazyByteString
+  , putShortByteString
   ) where
 
 #include <haskell>
@@ -57,3 +62,29 @@ bytesWrote = putC $ \ !x -> return (encodingBytesWrote x, x)
 castPut :: (a -> S.Put) -> Put a
 castPut !p = mapM_ putChunk . B.toChunks . S.runPut . p
 {-# INLINE castPut #-}
+
+-- | Efficiently write a byte into the output buffer.
+putWord8 :: Put Word8
+putWord8 = castPut S.putWord8
+{-# INLINE putWord8 #-}
+
+-- | Efficiently write a signed byte into the output buffer.
+putInt8 :: Put Int8
+putInt8 = castPut S.putInt8
+{-# INLINE putInt8 #-}
+
+-- | An efficient primitive to write a strict 'S.ByteString' into the output buffer.
+-- It flushes the current buffer, and writes the argument into a new chunk.
+putByteString :: Put S.ByteString
+putByteString = castPut S.putByteString
+{-# INLINE putByteString #-}
+
+-- | Write a lazy 'ByteString' efficiently, simply appending the lazy 'ByteString' chunks to the output buffer.
+putLazyByteString :: Put ByteString
+putLazyByteString = castPut S.putLazyByteString
+{-# INLINE putLazyByteString #-}
+
+-- | Write 'ShortByteString' to the buffer.
+putShortByteString :: Put ShortByteString
+putShortByteString = castPut S.putShortByteString
+{-# INLINE putShortByteString #-}
