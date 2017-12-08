@@ -19,21 +19,16 @@ module Data.Binary.Conduit.Get.Spec
   ) where
 
 import Control.Applicative
-import Control.Monad hiding (fail)
 import Control.Monad.Error.Class
 import Control.Monad.Loops
 import Data.Bits
 import qualified Data.ByteString as S (ByteString)
-import qualified Data.ByteString as SB hiding (ByteString, head, last, init, tail)
-import Data.ByteString.Lazy (ByteString)
-import qualified Data.ByteString.Lazy as B hiding (ByteString, head, last, init, tail)
 import Data.Char
 import Data.Conduit
 import qualified Data.Conduit.Combinators as N
 import Data.Functor.Identity
 import Data.Word
 import Test.HUnit.Base hiding (Label)
-import Test.HUnit.Text
 import Data.Binary.Conduit.Get
 
 tests :: Test
