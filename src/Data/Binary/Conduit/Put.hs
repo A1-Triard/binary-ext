@@ -39,7 +39,7 @@ module Data.Binary.Conduit.Put
 import Data.Binary.Conduit.Put.PutC
 
 -- | The shortening of 'PutM' for the most common use case.
-type Put i a = forall m. Monad m => PutM i m a
+type Put a = forall i m. Monad m => a -> PutM i m ()
 
 -- | Run an encoder presented as a 'Put' monad.
 -- Returns encoder result and produced bytes count.
@@ -48,15 +48,12 @@ runPut !p = (\(!r, !s) -> (r, encodingBytesWrote s)) <$> runPutC (startEncoding 
 {-# INLINE runPut #-}
 
 -- | Get the total number of bytes wrote to this point.
-bytesWrote :: Put i Word64
+bytesWrote :: Monad m => PutM i m Word64
 bytesWrote = putC $ \ !x -> return (encodingBytesWrote x, x)
 {-# INLINE bytesWrote #-}
 
 -- | Run the given 'S.PutM' monad from binary package
 -- and convert result into 'Put'.
-castPut :: S.PutM a -> Put i a
-castPut !p = do
-  let (!a, !b) = S.runPutM p
-  forM_ (B.toChunks b) putChunk
-  return a
+castPut :: (a -> S.Put) -> Put a
+castPut !p = mapM_ putChunk . B.toChunks . S.runPut . p
 {-# INLINE castPut #-}
