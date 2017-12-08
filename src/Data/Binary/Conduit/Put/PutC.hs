@@ -24,7 +24,7 @@ module Data.Binary.Conduit.Put.PutC
   , encodingPut
   , PutC
   , ByteChunk
-  , Put
+  , PutM
   , runPutC
   , putC
   , putChunk
@@ -86,21 +86,21 @@ instance MonadBaseControl b m => MonadBaseControl b (PutC m) where
   {-# INLINE restoreM #-}
 
 -- | A 'ConduitM' with internal transformers supposed to a binary serialization.
-type Put i m = ConduitM i ByteChunk (PutC m)
+type PutM i m = ConduitM i ByteChunk (PutC m)
 
-instance MonadBase b m => MonadBase b (Put i m) where
+instance MonadBase b m => MonadBase b (PutM i m) where
   liftBase = liftBaseDefault
   {-# INLINE liftBase #-}
 
 -- | Run a 'Put' monad, unwrapping all internal transformers in a reversible way.
 -- @'putC' . 'flip' runPutC = 'id'@
-runPutC :: Monad m => Encoding -> Put i m a -> ConduitM i S.ByteString m (a, Encoding)
+runPutC :: Monad m => Encoding -> PutM i m a -> ConduitM i S.ByteString m (a, Encoding)
 runPutC !encoding = runStateC encoding . transPipe runC . mapOutput bs
 {-# INLINE runPutC #-}
 
 -- | Custom 'Put'.
 -- @putC . 'flip' 'runPutC' = 'id'@
-putC :: Monad m => (Encoding -> ConduitM i S.ByteString m (a, Encoding)) -> Put i m a
+putC :: Monad m => (Encoding -> ConduitM i S.ByteString m (a, Encoding)) -> PutM i m a
 putC = mapOutput ByteChunk . transPipe C . stateC
 {-# INLINE putC #-}
 
@@ -108,7 +108,7 @@ putC = mapOutput ByteChunk . transPipe C . stateC
 -- If the downstream component terminates, this call will never return control.
 -- If you would like to register a cleanup function, please use 'putChunkOr' instead.
 -- putChunk is 'yield' with injected inner 'encodingPut'.
-putChunk :: Monad m => S.ByteString -> Put i m ()
+putChunk :: Monad m => S.ByteString -> PutM i m ()
 putChunk !o = do
   lift $ C $ modify' $ encodingPut $ fromIntegral $ SB.length o
   yield $ ByteChunk o
@@ -120,7 +120,7 @@ putChunk !o = do
 putChunkOr :: Monad m
   => S.ByteString
   -> PutC m () -- ^ Finalizer.
-  -> Put i m ()
+  -> PutM i m ()
 putChunkOr !o f = do
   lift $ C $ modify' $ encodingPut $ fromIntegral $ SB.length o
   yieldOr (ByteChunk o) f
