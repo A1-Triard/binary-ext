@@ -87,24 +87,24 @@ testInput7 =
   , "C"
   ]
 
-ensureEof :: e -> Get o e ()
+ensureEof :: e -> Get e ()
 ensureEof e = do
   eof <- endOfInput
   if eof then return () else throwError e
 
-get1 :: Get Word16 Bool ()
+get1 :: Monad m => GetM Word16 Bool m ()
 get1 = do
   yield =<< getWord16le `ifError` False
   yield =<< getWord16le `ifError` False
   yield =<< getWord16be `ifError` False
   ensureEof True
 
-get2 :: Get o () Word64
+get2 :: Get () Word64
 get2 = do
   skip 3
   bytesRead
 
-getTailBytes :: Get o () S.ByteString
+getTailBytes :: Get () S.ByteString
 getTailBytes = do
   r <- getByteString 3
   ensureEof ()
@@ -196,13 +196,13 @@ testAlternativeRollback = do
   assertEqual "" (Right $ 0x01 .|. 0x02 `shiftL` 8 .|. 0x03 `shiftL` 16 .|. 0x04 `shiftL` 24 .|. 0x05 `shiftL` 32 .|. 0x06 `shiftL` 40 .|. 0x07 `shiftL` 48 .|. 0x08 `shiftL` 56) e
   assertEqual "" 8 c
 
-recordBody :: Get o () [Word64]
+recordBody :: Get () [Word64]
 recordBody = whileM (not <$> endOfInput) $ isolate 8 () (const ()) getWord64le
 
-record :: Word64 -> Get o (Either (Maybe Word64) ()) [Word64]
+record :: Word64 -> Get (Either (Maybe Word64) ()) [Word64]
 record z = isolate z (Left Nothing) (Left . Just) $ mapError Right recordBody
 
-records :: Get [Word64] (Either (Maybe Word64) ()) ()
+records :: Monad m => GetM [Word64] (Either (Maybe Word64) ()) m ()
 records = do
   yield =<< record 24
   yield =<< record 16

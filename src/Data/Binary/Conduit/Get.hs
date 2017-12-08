@@ -88,7 +88,7 @@ module Data.Binary.Conduit.Get
 import Data.Binary.Conduit.Get.GetC
 
 -- | The shortening of 'GetM' for the most common use case.
-type Get o e a = forall m. Monad m => GetM o e m a
+type Get e a = forall o m. Monad m => GetM o e m a
 
 -- | Run a decoder presented as a 'Get' monad.
 -- Returns decoder result and consumed bytes count.
@@ -97,13 +97,13 @@ runGet !g = (\(!r, !s) -> (r, decodingBytesRead s)) <$> runGetC (startDecoding 0
 {-# INLINE runGet #-}
 
 -- | Get the total number of bytes read to this point.
-bytesRead :: Get o e Word64
+bytesRead :: Get e Word64
 bytesRead = getC $ \ !x -> return (Right $ decodingBytesRead x, x)
 {-# INLINE bytesRead #-}
 
 -- | Run the given 'S.Get' monad from binary package
 -- and convert result into 'Get'.
-castGet :: S.Get a -> Get o String a
+castGet :: S.Get a -> Get String a
 castGet !g =
   go (S.runGetIncremental g)
   where
@@ -114,7 +114,7 @@ castGet !g =
 
 -- | 'True' if there are no input elements left.
 -- This function may remove empty leading chunks from the stream, but otherwise will not modify it.
-endOfInput :: Get o e Bool
+endOfInput :: Get e Bool
 endOfInput =
   untilJust $ maybe
     (return $ Just True)
@@ -144,7 +144,7 @@ voidError = mapError (const ())
 {-# INLINE voidError #-}
 
 -- | Skip ahead @n@ bytes. Fails if fewer than @n@ bytes are available.
-skip :: Word64 -> Get o () ()
+skip :: Word64 -> Get () ()
 skip !n = do
   !consumed <- go 0
   if consumed < n
@@ -204,7 +204,7 @@ isolate !n unexpected_eof f !g = do
 
 -- | An efficient get method for strict 'S.ByteString's. Fails if fewer than @n@
 -- bytes are left in the input. If @n <= 0@ then the empty string is returned.
-getByteString :: Int -> Get o () S.ByteString
+getByteString :: Int -> Get () S.ByteString
 getByteString !n = do
   go SB.empty
   where
@@ -220,7 +220,7 @@ getByteString !n = do
 
 -- | An efficient get method for lazy 'ByteString's. Fails if fewer than @n@
 -- bytes are left in the input. If @n <= 0@ then the empty string is returned.
-getLazyByteString :: Int64 -> Get o () ByteString
+getLazyByteString :: Int64 -> Get () ByteString
 getLazyByteString n = do
   go B.empty
   where
@@ -237,7 +237,7 @@ getLazyByteString n = do
 -- | Get a lazy 'ByteString' that is terminated with a NUL byte.
 -- The returned string does not contain the NUL byte.
 -- Fails if it reaches the end of input without finding a NUL.
-getLazyByteStringNul :: Get o () ByteString
+getLazyByteStringNul :: Get () ByteString
 getLazyByteStringNul =
   go B.empty
   where
@@ -252,7 +252,7 @@ getLazyByteStringNul =
 -- | Get the remaining bytes as a lazy 'ByteString'.
 -- Note that this can be an expensive function to use as it
 -- forces reading all input and keeping the string in-memory.
-getRemainingLazyByteString :: Get o e ByteString
+getRemainingLazyByteString :: Get e ByteString
 getRemainingLazyByteString =
   go B.empty
   where
@@ -262,148 +262,148 @@ getRemainingLazyByteString =
       Nothing -> return consumed
       Just !i -> go $ consumed <> B.fromStrict i
 
-voidCastGet :: S.Get a -> Get o () a
+voidCastGet :: S.Get a -> Get () a
 voidCastGet = voidError . castGet
 {-# INLINE voidCastGet #-}
 
 -- | Read a 'Word8' from the monad state.
-getWord8 :: Get o () Word8
+getWord8 :: Get () Word8
 getWord8 = voidCastGet S.getWord8
 {-# INLINE getWord8 #-}
 
 -- | Read an 'Int8' from the monad state.
-getInt8 :: Get o () Int8
+getInt8 :: Get () Int8
 getInt8 = voidCastGet S.getInt8
 {-# INLINE getInt8 #-}
 
 -- | Read a 'Word16' in big endian format.
-getWord16be :: Get o () Word16
+getWord16be :: Get () Word16
 getWord16be = voidCastGet S.getWord16be
 {-# INLINE getWord16be #-}
 
 -- | Read a 'Word32' in big endian format.
-getWord32be :: Get o () Word32
+getWord32be :: Get () Word32
 getWord32be = voidCastGet S.getWord32be
 {-# INLINE getWord32be #-}
 
 -- | Read a 'Word64' in big endian format.
-getWord64be :: Get o () Word64
+getWord64be :: Get () Word64
 getWord64be = voidCastGet S.getWord64be
 {-# INLINE getWord64be #-}
 
 -- | Read a 'Word16' in little endian format.
-getWord16le :: Get o () Word16
+getWord16le :: Get () Word16
 getWord16le = voidCastGet S.getWord16le
 {-# INLINE getWord16le #-}
 
 -- | Read a 'Word32' in little endian format.
-getWord32le :: Get o () Word32
+getWord32le :: Get () Word32
 getWord32le = voidCastGet S.getWord32le
 {-# INLINE getWord32le #-}
 
 -- | Read a 'Word64' in little endian format.
-getWord64le :: Get o () Word64
+getWord64le :: Get () Word64
 getWord64le = voidCastGet S.getWord64le
 {-# INLINE getWord64le #-}
 
 -- | Read a single native machine word. The word is read in
 -- host order, host endian form, for the machine you're on. On a 64 bit
 -- machine the Word is an 8 byte value, on a 32 bit machine, 4 bytes.
-getWordhost :: Get o () Word
+getWordhost :: Get () Word
 getWordhost = voidCastGet S.getWordhost
 {-# INLINE getWordhost #-}
 
 -- | Read a 2 byte 'Word16' in native host order and host endianness.
-getWord16host :: Get o () Word16
+getWord16host :: Get () Word16
 getWord16host = voidCastGet S.getWord16host
 {-# INLINE getWord16host #-}
 
 -- | Read a 4 byte 'Word32' in native host order and host endianness.
-getWord32host :: Get o () Word32
+getWord32host :: Get () Word32
 getWord32host = voidCastGet S.getWord32host
 {-# INLINE getWord32host #-}
 
 -- | Read a 8 byte 'Word64' in native host order and host endianness.
-getWord64host :: Get o () Word64
+getWord64host :: Get () Word64
 getWord64host = voidCastGet S.getWord64host
 {-# INLINE getWord64host #-}
 
 -- | Read an 'Int16' in big endian format.
-getInt16be :: Get o () Int16
+getInt16be :: Get () Int16
 getInt16be = voidCastGet S.getInt16be
 {-# INLINE getInt16be #-}
 
 -- | Read an 'Int32' in big endian format.
-getInt32be :: Get o () Int32
+getInt32be :: Get () Int32
 getInt32be = voidCastGet S.getInt32be
 {-# INLINE getInt32be #-}
 
 -- | Read an 'Int64' in big endian format.
-getInt64be :: Get o () Int64
+getInt64be :: Get () Int64
 getInt64be = voidCastGet S.getInt64be
 {-# INLINE getInt64be #-}
 
 -- | Read an 'Int16' in little endian format.
-getInt16le :: Get o () Int16
+getInt16le :: Get () Int16
 getInt16le = voidCastGet S.getInt16le
 {-# INLINE getInt16le #-}
 
 -- | Read an 'Int32' in little endian format.
-getInt32le :: Get o () Int32
+getInt32le :: Get () Int32
 getInt32le = voidCastGet S.getInt32le
 {-# INLINE getInt32le #-}
 
 -- | Read an 'Int64' in little endian format.
-getInt64le :: Get o () Int64
+getInt64le :: Get () Int64
 getInt64le = voidCastGet S.getInt64le
 {-# INLINE getInt64le #-}
 
 -- | Read a single native machine word. It works in the same way as 'getWordhost'.
-getInthost :: Get o () Int
+getInthost :: Get () Int
 getInthost = voidCastGet S.getInthost
 {-# INLINE getInthost #-}
 
 -- | Read a 2 byte 'Int16' in native host order and host endianness.
-getInt16host :: Get o () Int16
+getInt16host :: Get () Int16
 getInt16host = voidCastGet S.getInt16host
 {-# INLINE getInt16host #-}
 
 -- | Read a 4 byte 'Int32' in native host order and host endianness.
-getInt32host :: Get o () Int32
+getInt32host :: Get () Int32
 getInt32host = voidCastGet S.getInt32host
 {-# INLINE getInt32host #-}
 
 -- | Read a 8 byte 'Int64' in native host order and host endianness.
-getInt64host :: Get o () Int64
+getInt64host :: Get () Int64
 getInt64host = voidCastGet S.getInt64host
 {-# INLINE getInt64host #-}
 
 -- | Read a 'Float' in big endian IEEE-754 format.
-getFloatbe :: Get o () Float
+getFloatbe :: Get () Float
 getFloatbe = voidCastGet S.getFloat32be
 {-# INLINE getFloatbe #-}
 
 -- | Read a 'Float' in little endian IEEE-754 format.
-getFloatle :: Get o () Float
+getFloatle :: Get () Float
 getFloatle = voidCastGet S.getFloat32le
 {-# INLINE getFloatle #-}
 
 -- | Read a 'Float' in IEEE-754 format and host endian.
-getFloathost :: Get o () Float
+getFloathost :: Get () Float
 getFloathost = wordToFloat <$> voidCastGet S.getWord32host
 {-# INLINE getFloathost #-}
 
 -- | Read a 'Double' in big endian IEEE-754 format.
-getDoublebe :: Get o () Double
+getDoublebe :: Get () Double
 getDoublebe = voidCastGet S.getFloat64be
 {-# INLINE getDoublebe #-}
 
 -- | Read a 'Double' in little endian IEEE-754 format.
-getDoublele :: Get o () Double
+getDoublele :: Get () Double
 getDoublele = voidCastGet S.getFloat64le
 {-# INLINE getDoublele #-}
 
 -- | Read a 'Double' in IEEE-754 format and host endian.
-getDoublehost :: Get o () Double
+getDoublehost :: Get () Double
 getDoublehost = wordToDouble <$> voidCastGet S.getWord64host
 {-# INLINE getDoublehost #-}
