@@ -180,7 +180,7 @@ isolate :: Monad m
   -> GetM o e m a
 isolate !n unexpected_eof f !g = do
   !o1 <- bytesRead
-  !r <- getC $ flip runStateC $ runExceptC $ go 0 =$= (exceptC $ stateC $ flip runGetC $ g)
+  !r <- getC $ flip runStateC $ runExceptC $ fuseLeftovers id (go 0) (exceptC $ stateC $ flip runGetC $ g)
   !o2 <- bytesRead
   if o2 - o1 < n
     then throwError $ f $ o2 - o1
@@ -198,8 +198,8 @@ isolate !n unexpected_eof f !g = do
               go $ consumed + fromIntegral (SB.length i)
             else do
               let (!h, !t) = SB.splitAt (fromIntegral gap) i
-              yield h
               leftover t
+              yield h
 {-# INLINE isolate #-}
 
 -- | An efficient get method for strict 'S.ByteString's. Fails if fewer than @n@

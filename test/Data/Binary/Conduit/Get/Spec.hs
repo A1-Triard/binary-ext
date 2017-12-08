@@ -37,6 +37,7 @@ tests = TestList
   , TestCase testIsolateIsolateEnoughButEof
   , TestCase testIsolateIsolateEnoughButEofEarly
   , TestCase testAlternativeRollback
+  , TestCase testRecords
   ]
 
 testInput1 :: [S.ByteString]
@@ -193,3 +194,28 @@ testAlternativeRollback = do
   let (!e, !c) = runIdentity $ N.yieldMany testInput6 $$ runGet ((skip 9 >> throwError ()) <|> getWord64le)
   assertEqual "" (Right $ 0x01 .|. 0x02 `shiftL` 8 .|. 0x03 `shiftL` 16 .|. 0x04 `shiftL` 24 .|. 0x05 `shiftL` 32 .|. 0x06 `shiftL` 40 .|. 0x07 `shiftL` 48 .|. 0x08 `shiftL` 56) e
   assertEqual "" 8 c
+
+recordBody :: Get o () [Word64]
+recordBody = whileM (not <$> endOfInput) $ isolate 8 () (const ()) getWord64le
+
+record :: Word64 -> Get o (Either (Maybe Word64) ()) [Word64]
+record z = isolate z (Left Nothing) (Left . Just) $ mapError Right recordBody
+
+records :: Get [Word64] (Either (Maybe Word64) ()) ()
+records = do
+  yield =<< record 24
+  yield =<< record 16
+  yield =<< record 8
+
+recordsInput :: [S.ByteString]
+recordsInput =
+  [ "0123456701234567"
+  , "01234567012345670123456701234567"
+  ]
+
+testRecords :: Assertion
+testRecords = do
+  let ((!e, !c), !r) = runIdentity $ N.yieldMany recordsInput $$ (runGet records `fuseBoth` N.sinkList)
+  assertEqual (show c) (Right ()) e
+  assertEqual "" [[3978425819141910832, 3978425819141910832, 3978425819141910832], [3978425819141910832, 3978425819141910832], [3978425819141910832]] r
+  assertEqual "" 48 c
