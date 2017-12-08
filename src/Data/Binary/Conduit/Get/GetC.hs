@@ -33,8 +33,26 @@ module Data.Binary.Conduit.Get.GetC
   , mapError
   ) where
 
-#include <haskell>
-
+import Control.Applicative
+import Control.Error.Util
+import Control.Monad hiding (fail)
+import Control.Monad.Base
+import Control.Monad.Error.Class
+import Control.Monad.Fail
+import Control.Monad.Fix
+import Control.Monad.IO.Class
+import Control.Monad.Trans.Class
+import Control.Monad.Trans.Control
+import Control.Monad.Trans.Except
+import Control.Monad.Trans.State.Strict
+import qualified Data.ByteString as S (ByteString)
+import qualified Data.ByteString as SB hiding (ByteString, head, last, init, tail)
+import Data.ByteString.Lazy (ByteString)
+import qualified Data.ByteString.Lazy as B hiding (ByteString, head, last, init, tail)
+import Data.Conduit
+import Data.Conduit.Lift
+import Data.Maybe hiding (fromJust)
+import Data.Word
 import Data.Binary.Conduit.Base
 
 -- | 'GetC' monad state.

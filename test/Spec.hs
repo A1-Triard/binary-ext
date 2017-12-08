@@ -14,9 +14,9 @@
 -- limitations under the License.
 --
 
-#define TESTS
-#include <haskell>
-
+import Control.Monad hiding (fail)
+import Test.HUnit.Base hiding (Label)
+import Test.HUnit.Text
 import qualified Data.Binary.Conduit.Get.Spec
 
 main :: IO ()
