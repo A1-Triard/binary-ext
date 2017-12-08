@@ -174,7 +174,7 @@ skip !n = do
 -- offset from 'bytesRead' will NOT be relative to the start of 'isolate'.
 isolate :: Monad m
   => Word64 -- ^ The number of bytes that must be consumed.
-  -> e -- ^ The error if if fewer than @n@ bytes are available.
+  -> e -- ^ The error if fewer than @n@ bytes are available.
   -> (Word64 -> e) -- ^ The error if fewer than @n@ bytes were consumed.
   -> GetM o e m a -- ^ The decoder to isolate.
   -> GetM o e m a
