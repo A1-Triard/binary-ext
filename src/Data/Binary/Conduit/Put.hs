@@ -84,7 +84,7 @@ runPutM !p = (\(!r, !s) -> (r, encodingBytesWrote s)) <$> runPutC (startEncoding
 -- | Run an encoder presented as a 'Put'.
 -- Returns produced bytes count.
 runPut :: Monad m => (a -> PutM i m ()) -> a -> ConduitM i S.ByteString m Word64
-runPut !p = (snd <$>) . runPutM . p
+runPut = (((snd <$>) . runPutM) .)
 {-# INLINE runPut #-}
 
 -- | Get the total number of bytes wrote to this point.
@@ -95,7 +95,7 @@ bytesWrote = putC $ \ !x -> return (encodingBytesWrote x, x)
 -- | Run the given 'S.PutM' monad from binary package
 -- and convert result into 'Put'.
 castPut :: (a -> S.Put) -> Put a
-castPut !p = mapM_ putChunk . B.toChunks . S.runPut . p
+castPut = ((mapM_ putChunk . B.toChunks . S.runPut) .)
 {-# INLINE castPut #-}
 
 -- | Efficiently write a byte into the output buffer.
