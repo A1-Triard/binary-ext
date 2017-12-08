@@ -85,24 +85,24 @@ testInput7 =
   , "C"
   ]
 
-ensureEof :: Monad m => e -> Get o e m ()
+ensureEof :: e -> Get o e ()
 ensureEof e = do
   eof <- endOfInput
   if eof then return () else throwError e
 
-get1 :: Monad m => Get Word16 Bool m ()
+get1 :: Get Word16 Bool ()
 get1 = do
   yield =<< getWord16le `ifError` False
   yield =<< getWord16le `ifError` False
   yield =<< getWord16be `ifError` False
   ensureEof True
 
-get2 :: Monad m => Get o () m Word64
+get2 :: Get o () Word64
 get2 = do
   skip 3
   bytesRead
 
-getTailBytes :: Monad m => Get o () m S.ByteString
+getTailBytes :: Get o () S.ByteString
 getTailBytes = do
   r <- getByteString 3
   ensureEof ()

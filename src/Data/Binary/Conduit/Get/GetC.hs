@@ -25,7 +25,7 @@ module Data.Binary.Conduit.Get.GetC
   , decodingUngot
   , GetC
   , ByteChunk
-  , Get
+  , GetM
   , runGetC
   , getC
   , getChunk
@@ -39,7 +39,7 @@ import Data.Binary.Conduit.Base
 
 -- | 'GetC' monad state.
 data Decoding = Decoding
-  { decodingBytesRead :: !Word64 -- ^ Get the total number of bytes read to this point.
+  { decodingBytesRead :: !Word64 -- ^ GetM the total number of bytes read to this point.
   , tracking :: !(Maybe [S.ByteString])
   } deriving Show
 
@@ -109,19 +109,19 @@ instance MonadBaseControl b m => MonadBaseControl b (GetC e m) where
   {-# INLINE restoreM #-}
 
 -- | A 'ConduitM' with internal transformers supposed to a binary deserialization.
-type Get o e m = ConduitM ByteChunk o (GetC e m)
+type GetM o e m = ConduitM ByteChunk o (GetC e m)
 
-instance MonadBase b m => MonadBase b (Get o e m) where
+instance MonadBase b m => MonadBase b (GetM o e m) where
   liftBase = liftBaseDefault
   {-# INLINE liftBase #-}
 
-instance (Monoid e, Monad m) => Alternative (Get o e m) where
+instance (Monoid e, Monad m) => Alternative (GetM o e m) where
   empty = throwError mempty
   {-# INLINE empty #-}
   a <|> b = catchError (transaction a) $ \ !ea -> catchError (transaction b) $ \ !eb -> throwError (ea `mappend` eb)
   {-# INLINE (<|>) #-}
 
-transaction :: Monad m => Get o e m a -> Get o e m a
+transaction :: Monad m => GetM o e m a -> GetM o e m a
 transaction !g = getC $ \ !c -> do
   (!r, !f) <- runGetC (Decoding { decodingBytesRead = decodingBytesRead c, tracking = Just [] }) g
   let !tracking_f = fromMaybe (error "Data.Binary.Conduit.Get.GetC.transaction") $ tracking f
@@ -132,14 +132,14 @@ transaction !g = getC $ \ !c -> do
 
 -- | Run a 'Get' monad, unwrapping all internal transformers in a reversible way.
 -- @'getC' . 'flip' runGetC = 'id'@
-runGetC :: Monad m => Decoding -> Get o e m a -> ConduitM S.ByteString o m (Either e a, Decoding)
+runGetC :: Monad m => Decoding -> GetM o e m a -> ConduitM S.ByteString o m (Either e a, Decoding)
 runGetC !decoding = runStateC decoding . runExceptC . transPipe runC . mapInput ByteChunk (Just . bs)
 {-# INLINE runGetC #-}
 
 -- | Custom 'Get'.
 -- @getC . 'flip' 'runGetC' = 'id'@
 -- Example:
--- > skipUntilZero :: Monad m => Get o e m ()
+-- > skipUntilZero :: Monad m => GetM o e m ()
 -- > skipUntilZero = getC $ flip runStateC $ do
 -- >   untilM_ (return ()) $ do
 -- >     !m_inp <- await
@@ -154,14 +154,14 @@ runGetC !decoding = runStateC decoding . runExceptC . transPipe runC . mapInput 
 -- >             leftover t
 -- >             lift $ modify' $ decodingUngot $ SB.length t
 -- Please note, the above code is just a sample, and this particular function can be defined in easy way without getC.
-getC :: Monad m => (Decoding -> ConduitM S.ByteString o m (Either e a, Decoding)) -> Get o e m a
+getC :: Monad m => (Decoding -> ConduitM S.ByteString o m (Either e a, Decoding)) -> GetM o e m a
 getC = mapInput bs (Just . ByteChunk) . transPipe C . exceptC . stateC
 {-# INLINE getC #-}
 
 -- | Wait for a single input value from upstream. If no data is available, returns 'Nothing'.
 -- Once await returns 'Nothing', subsequent calls will also return 'Nothing'.
 -- getChunk is 'await' with injected inner 'decodingGot'.
-getChunk :: Monad m => Get o e m (Maybe S.ByteString)
+getChunk :: Monad m => GetM o e m (Maybe S.ByteString)
 getChunk = do
   !mi <- await
   case mi of
@@ -174,7 +174,7 @@ getChunk = do
 -- | Provide a single piece of leftover input to be consumed by the next component in the current monadic binding.
 -- Note: it is highly encouraged to only return leftover values from input already consumed from upstream.
 -- ungetChunk is 'leftover' with injected inner 'decodingUngot'.
-ungetChunk :: Monad m => S.ByteString -> Get o e m ()
+ungetChunk :: Monad m => S.ByteString -> GetM o e m ()
 ungetChunk !i = do
   leftover $ ByteChunk i
   lift $ C $ lift $ modify' $ decodingUngot $ fromIntegral $ SB.length i
@@ -182,6 +182,6 @@ ungetChunk !i = do
 
 -- | Convert decoder error. If the decoder fails, the given function will be applied
 -- to the error message.
-mapError :: Monad m => (e -> e') -> Get o e m a -> Get o e' m a
+mapError :: Monad m => (e -> e') -> GetM o e m a -> GetM o e' m a
 mapError f !g = transPipe C $ exceptC $ either (Left . f) Right <$> runExceptC (transPipe runC g)
 {-# INLINE mapError #-}
