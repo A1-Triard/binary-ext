@@ -46,7 +46,6 @@ module Data.Binary.Conduit.Get
   , onError
   , withError
   , ifError
-  , voidError
   , skip
   , isolate
   , getByteString
@@ -141,7 +140,7 @@ onError = flip mapError
 {-# INLINE onError #-}
 
 -- | Set decoder error. If the decoder fails, the given error will be used
--- as the error message.
+-- as an error message.
 withError :: Monad m => e -> GetM o () m a -> GetM o e m a
 withError e = mapError (const e)
 {-# INLINE withError #-}
@@ -151,7 +150,6 @@ ifError :: Monad m => GetM o () m a -> e -> GetM o e m a
 ifError = flip withError
 {-# INLINE ifError #-}
 
--- | Map any error into '()'.
 voidError :: Monad m => GetM o e m a -> GetM o () m a
 voidError = mapError (const ())
 {-# INLINE voidError #-}
@@ -182,9 +180,9 @@ skip !n = do
 {-# INLINE skip #-}
 
 -- | Isolate a decoder to operate with a fixed number of bytes, and fail if
--- fewer bytes were consumed, or more bytes were attempted to be consumed.
--- Unlike 'Data.Binary.Get.isolate' from binary package,
--- offset from 'bytesRead' will NOT be relative to the start of 'isolate'.
+-- fewer bytes were consumed, or if fewer bytes are left in the input.
+-- Unlike 'S.isolate' from binary package,
+-- offset from 'bytesRead' will NOT be relative to the start of @isolate@.
 isolate :: Monad m
   => Word64 -- ^ The number of bytes that must be consumed.
   -> e -- ^ The error if fewer than @n@ bytes are available.

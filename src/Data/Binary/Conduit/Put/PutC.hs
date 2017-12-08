@@ -120,7 +120,7 @@ putC = mapOutput ByteChunk . transPipe C . stateC
 -- | Send a value downstream to the next component to consume.
 -- If the downstream component terminates, this call will never return control.
 -- If you would like to register a cleanup function, please use 'putChunkOr' instead.
--- putChunk is 'yield' with injected inner 'encodingPut'.
+-- @putChunk@ is 'yield' with injected inner 'encodingPut'.
 putChunk :: Monad m => S.ByteString -> PutM i m ()
 putChunk !o = do
   lift $ C $ modify' $ encodingPut $ fromIntegral $ SB.length o
@@ -129,7 +129,7 @@ putChunk !o = do
 
 -- | Similar to 'putChunk', but additionally takes a finalizer to be run
 -- if the downstream component terminates.
--- putChunkOr is 'yieldOr' with injected inner 'encodingPut'.
+-- @putChunkOr@ is 'yieldOr' with injected inner 'encodingPut'.
 putChunkOr :: Monad m
   => S.ByteString
   -> PutC m () -- ^ Finalizer.

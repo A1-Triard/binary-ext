@@ -27,7 +27,7 @@ import Data.Word
 
 -- | A wrapped 'S.ByteString'.
 -- There is no direct conversion between 'S.ByteString' and 'ByteChunk'.
--- Use 'getInt' instead of 'await' and 'ungetChunk' instead of 'leftover'
+-- Use 'Data.Binary.Conduit.Get.getChunk' instead of 'await' and 'Data.Binary.Conduit.Get.ungetChunk' instead of 'leftover'
 -- to get unwrapped 'S.ByteString' instead of 'ByteChunk'.
 newtype ByteChunk = ByteChunk { bs :: S.ByteString }
 type instance Element ByteChunk = Word8

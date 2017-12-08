@@ -142,7 +142,7 @@ transaction !g = getC $ \ !c -> do
   (!r, !f) <- runGetC (Decoding { decodingBytesRead = decodingBytesRead c, tracking = Just [] }) g
   let !tracking_f = fromMaybe (error "Data.Binary.Conduit.Get.GetC.transaction") $ tracking f
   if isRight r
-    then  return (r, Decoding { decodingBytesRead = decodingBytesRead f, tracking = (tracking_f ++) <$> tracking c })
+    then return (r, Decoding { decodingBytesRead = decodingBytesRead f, tracking = (tracking_f ++) <$> tracking c })
     else forM_ tracking_f leftover >> return (r, c)
 {-# INLINE transaction #-}
 
@@ -155,7 +155,7 @@ runGetC !decoding = runStateC decoding . runExceptC . transPipe runC . mapInput 
 -- | Custom 'Get'.
 -- @getC . 'flip' 'runGetC' = 'id'@
 -- Example:
--- > skipUntilZero :: Monad m => GetM o e m ()
+-- > skipUntilZero :: Get e ()
 -- > skipUntilZero = getC $ flip runStateC $ do
 -- >   untilM_ (return ()) $ do
 -- >     !m_inp <- await
@@ -169,14 +169,14 @@ runGetC !decoding = runStateC decoding . runExceptC . transPipe runC . mapInput 
 -- >             let (!h, !t) = SB.splitAt i inp
 -- >             leftover t
 -- >             lift $ modify' $ decodingUngot $ SB.length t
--- Please note, the above code is just a sample, and this particular function can be defined in easy way without getC.
+-- Please note, the above code is just a sample, and this particular function can be defined in easy way without @getC@.
 getC :: Monad m => (Decoding -> ConduitM S.ByteString o m (Either e a, Decoding)) -> GetM o e m a
 getC = mapInput bs (Just . ByteChunk) . transPipe C . exceptC . stateC
 {-# INLINE getC #-}
 
 -- | Wait for a single input value from upstream. If no data is available, returns 'Nothing'.
 -- Once await returns 'Nothing', subsequent calls will also return 'Nothing'.
--- getChunk is 'await' with injected inner 'decodingGot'.
+-- @getChunk@ is 'await' with injected inner 'decodingGot'.
 getChunk :: Monad m => GetM o e m (Maybe S.ByteString)
 getChunk = do
   !mi <- await
@@ -189,7 +189,7 @@ getChunk = do
 
 -- | Provide a single piece of leftover input to be consumed by the next component in the current monadic binding.
 -- Note: it is highly encouraged to only return leftover values from input already consumed from upstream.
--- ungetChunk is 'leftover' with injected inner 'decodingUngot'.
+-- @ungetChunk@ is 'leftover' with injected inner 'decodingUngot'.
 ungetChunk :: Monad m => S.ByteString -> GetM o e m ()
 ungetChunk !i = do
   leftover $ ByteChunk i
