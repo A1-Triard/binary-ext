@@ -25,6 +25,7 @@ module Data.Binary.Conduit.Put
   , runPutF
   , putF
   , PutM
+  , Put
   , runPut
   , runPutM
   , bytesGoingWrite
