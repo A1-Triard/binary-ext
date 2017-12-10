@@ -19,19 +19,15 @@
 
 module Data.Binary.Conduit.Put
   ( Encoding
-  , startEncoding
-  , encodingBytesWrote
-  , encodingPut
-  , PutC
-  , ByteChunk
-  , Put
-  , runPutC
-  , putC
-  , putChunk
-  , putChunkOr
+  , encodingBytesGoingWrite
+  , encodingGoingPut
+  , PutF
+  , runPutF
+  , putF
+  , PutM
   , runPut
   , runPutM
-  , bytesWrote
+  , bytesGoingWrite
   , castPut
   , putWord8
   , putInt8
@@ -64,151 +60,153 @@ module Data.Binary.Conduit.Put
   , putInt64host
   , putFloathost
   , putDoublehost
-  , putCharUtf8
-  , putStringUtf8
   ) where
 
 import qualified Data.Binary.Put as S
 import Data.Binary.IEEE754 (floatToWord, doubleToWord)
 import qualified Data.Binary.IEEE754 as S hiding (floatToWord, wordToFloat, doubleToWord, wordToDouble)
+import Data.Bits
 import qualified Data.ByteString as S (ByteString)
+import qualified Data.ByteString as SB hiding (ByteString, head, last, init, tail)
 import Data.ByteString.Lazy (ByteString)
 import qualified Data.ByteString.Lazy as B hiding (ByteString, head, last, init, tail)
 import Data.ByteString.Short (ShortByteString)
+import qualified Data.ByteString.Short as HB hiding (ShortByteString)
 import Data.Conduit
 import Data.Int
 import Data.Word
-import Data.Binary.Conduit.Put.PutC
+import Data.Binary.Conduit.Put.PutF
 
 -- | The shortening of 'PutM' for the most common use case.
 type Put = forall i m. Monad m => PutM i m ()
 
--- | Run an encoder presented as a 'PutM' monad.
--- Returns encoder result and produced bytes count.
-runPutM :: Monad m => PutM i m a -> ConduitM i S.ByteString m (a, Word64)
-runPutM !p = (\(!r, !s) -> (r, encodingBytesWrote s)) <$> runPutC (startEncoding 0) p
+-- | Run an encoder presented as a 'PutM' functor.
+-- Returns a conduit and bytes count going to write.
+runPutM :: PutM i m a -> (ConduitM i S.ByteString m a, Word64)
+runPutM = (\(!r, !s) -> (r, encodingBytesGoingWrite s)) . runPutF
 {-# INLINE runPutM #-}
 
--- | Run an encoder presented as a 'Put'.
--- Returns produced bytes count.
-runPut :: Monad m => PutM i m () -> ConduitM i S.ByteString m Word64
-runPut = (snd <$>) . runPutM
+-- | Run an encoder presented as a 'PutM' functor.
+-- Returns a conduit.
+runPut :: PutM i m a -> ConduitM i S.ByteString m a
+runPut = fst . runPutM
 {-# INLINE runPut #-}
 
--- | Get the total number of bytes wrote to this point.
-bytesWrote :: Monad m => PutM i m Word64
-bytesWrote = putC $ \ !x -> return (encodingBytesWrote x, x)
-{-# INLINE bytesWrote #-}
+-- | Get the total number of bytes going to write during encoding.
+bytesGoingWrite :: PutM i m a -> Word64
+bytesGoingWrite = snd . runPutM
+{-# INLINE bytesGoingWrite #-}
 
 -- | Run the given 'S.Put' encoder from binary package
+-- producing the given bytes count
 -- and convert result into a 'Put'.
-castPut :: S.Put -> Put
-castPut = mapM_ putChunk . B.toChunks . S.runPut
+castPut :: Word64 -> S.Put -> Put
+castPut !n !p = putF (mapM_ yield $ B.toChunks $ S.runPut p) (encodingGoingPut n)
 {-# INLINE castPut #-}
 
 -- | Write a byte.
 putWord8 :: Word8 -> Put
-putWord8 = castPut . S.putWord8
+putWord8 = castPut 1 . S.putWord8
 {-# INLINE putWord8 #-}
 
 -- | Write a signed byte.
 putInt8 :: Int8 -> Put
-putInt8 = castPut . S.putInt8
+putInt8 = castPut 1 . S.putInt8
 {-# INLINE putInt8 #-}
 
 -- | Write a strict 'S.ByteString'.
 putByteString :: S.ByteString -> Put
-putByteString = castPut . S.putByteString
+putByteString b = castPut (fromIntegral $ SB.length b) $ S.putByteString b
 {-# INLINE putByteString #-}
 
 -- | Write a lazy 'ByteString'.
 putLazyByteString :: ByteString -> Put
-putLazyByteString = castPut . S.putLazyByteString
+putLazyByteString b = castPut (fromIntegral $ B.length b) $ S.putLazyByteString b
 {-# INLINE putLazyByteString #-}
 
 -- | Write a 'ShortByteString'.
 putShortByteString :: ShortByteString -> Put
-putShortByteString = castPut . S.putShortByteString
+putShortByteString b = castPut (fromIntegral $ HB.length b) $ S.putShortByteString b
 {-# INLINE putShortByteString #-}
 
 -- | Write a 'Word16' in big endian format.
 putWord16be :: Word16 -> Put
-putWord16be = castPut . S.putWord16be
+putWord16be = castPut 2 . S.putWord16be
 {-# INLINE putWord16be #-}
 
 -- | Write a 'Word32' in big endian format.
 putWord32be :: Word32 -> Put
-putWord32be = castPut . S.putWord32be
+putWord32be = castPut 4 . S.putWord32be
 {-# INLINE putWord32be #-}
 
 -- | Write a 'Word64' in big endian format.
 putWord64be :: Word64 -> Put
-putWord64be = castPut . S.putWord64be
+putWord64be = castPut 8 . S.putWord64be
 {-# INLINE putWord64be #-}
 
 -- | Write an 'Int16' in big endian format.
 putInt16be :: Int16 -> Put
-putInt16be = castPut . S.putInt16be
+putInt16be = castPut 2 . S.putInt16be
 {-# INLINE putInt16be #-}
 
 -- | Write an 'Int32' in big endian format.
 putInt32be :: Int32 -> Put
-putInt32be = castPut . S.putInt32be
+putInt32be = castPut 4 . S.putInt32be
 {-# INLINE putInt32be #-}
 
 -- | Write an 'Int64' in big endian format.
 putInt64be :: Int64 -> Put
-putInt64be = castPut . S.putInt64be
+putInt64be = castPut 8 . S.putInt64be
 {-# INLINE putInt64be #-}
 
 -- | Write a 'Float' in big endian IEEE-754 format.
 putFloatbe :: Float -> Put
-putFloatbe = castPut . S.putFloat32be
+putFloatbe = castPut 4 . S.putFloat32be
 {-# INLINE putFloatbe #-}
 
 -- | Write a 'Double' in big endian IEEE-754 format.
 putDoublebe :: Double -> Put
-putDoublebe = castPut . S.putFloat64be
+putDoublebe = castPut 8 . S.putFloat64be
 {-# INLINE putDoublebe #-}
 
 -- | Write a 'Word16' in little endian format.
 putWord16le :: Word16 -> Put
-putWord16le = castPut . S.putWord16le
+putWord16le = castPut 2 . S.putWord16le
 {-# INLINE putWord16le #-}
 
 -- | Write a 'Word32' in little endian format.
 putWord32le :: Word32 -> Put
-putWord32le = castPut . S.putWord32le
+putWord32le = castPut 4 . S.putWord32le
 {-# INLINE putWord32le #-}
 
 -- | Write a 'Word64' in little endian format.
 putWord64le :: Word64 -> Put
-putWord64le = castPut . S.putWord64le
+putWord64le = castPut 8 . S.putWord64le
 {-# INLINE putWord64le #-}
 
 -- | Write an 'Int16' in little endian format.
 putInt16le :: Int16 -> Put
-putInt16le = castPut . S.putInt16le
+putInt16le = castPut 2 . S.putInt16le
 {-# INLINE putInt16le #-}
 
 -- | Write an 'Int32' in little endian format.
 putInt32le :: Int32 -> Put
-putInt32le = castPut . S.putInt32le
+putInt32le = castPut 4 . S.putInt32le
 {-# INLINE putInt32le #-}
 
 -- | Write an 'Int64' in little endian format.
 putInt64le :: Int64 -> Put
-putInt64le = castPut . S.putInt64le
+putInt64le = castPut 8 . S.putInt64le
 {-# INLINE putInt64le #-}
 
 -- | Write a 'Float' in little endian IEEE-754 format.
 putFloatle :: Float -> Put
-putFloatle = castPut . S.putFloat32le
+putFloatle = castPut 4 . S.putFloat32le
 {-# INLINE putFloatle #-}
 
 -- | Write a 'Double' in little endian IEEE-754 format.
 putDoublele :: Double -> Put
-putDoublele = castPut . S.putFloat64le
+putDoublele = castPut 8 . S.putFloat64le
 {-# INLINE putDoublele #-}
 
 -- | Write a single native machine word. The word is written in host order,
@@ -216,23 +214,23 @@ putDoublele = castPut . S.putFloat64le
 -- On a 64 bit machine the 'Word' is an 8 byte value, on a 32 bit machine, 4 bytes.
 -- Values written this way are not portable to different endian or word sized machines, without conversion.
 putWordhost :: Word -> Put
-putWordhost = castPut . S.putWordhost
+putWordhost = castPut (fromIntegral $ finiteBitSize (0 :: Word)) . S.putWordhost
 {-# INLINE putWordhost #-}
 
 -- | Write a 'Word16' in native host order and host endianness. For portability issues see 'putWordhost'.
 putWord16host :: Word16 -> Put
-putWord16host = castPut . S.putWord16host
+putWord16host = castPut 2 . S.putWord16host
 {-# INLINE putWord16host #-}
 
 -- | Write a 'Word32' in native host order and host endianness. For portability issues see 'putWordhost'.
 putWord32host :: Word32 -> Put
-putWord32host = castPut . S.putWord32host
+putWord32host = castPut 4 . S.putWord32host
 {-# INLINE putWord32host #-}
 
 -- | Write a 'Word64' in native host order On a 32 bit machine we write two host order 'Word32's,
 -- in big endian form. For portability issues see 'putWordhost'.
 putWord64host :: Word64 -> Put
-putWord64host = castPut . S.putWord64host
+putWord64host = castPut 8 . S.putWord64host
 {-# INLINE putWord64host #-}
 
 -- | Write a single native machine word. The word is written in host order, host endian form,
@@ -240,41 +238,31 @@ putWord64host = castPut . S.putWord64host
 -- On a 64 bit machine the 'Int' is an 8 byte value, on a 32 bit machine, 4 bytes.
 -- Values written this way are not portable to different endian or word sized machines, without conversion.
 putInthost :: Int -> Put
-putInthost = castPut . S.putInthost
+putInthost = castPut (fromIntegral $ finiteBitSize (0 :: Int)) . S.putInthost
 {-# INLINE putInthost #-}
 
 -- | Write an 'Int16' in native host order and host endianness. For portability issues see 'putInthost'.
 putInt16host :: Int16 -> Put
-putInt16host = castPut . S.putInt16host
+putInt16host = castPut 2 . S.putInt16host
 {-# INLINE putInt16host #-}
 
 -- | Write an 'Int32' in native host order and host endianness. For portability issues see 'putInthost'.
 putInt32host :: Int32 -> Put
-putInt32host = castPut . S.putInt32host
+putInt32host = castPut 4 . S.putInt32host
 {-# INLINE putInt32host #-}
 
 -- | Write an 'Int64' in native host order On a 32 bit machine we write two host order 'Int32's,
 -- in big endian form. For portability issues see putInthost.
 putInt64host :: Int64 -> Put
-putInt64host = castPut . S.putInt64host
+putInt64host = castPut 8 . S.putInt64host
 {-# INLINE putInt64host #-}
 
 -- | Write a 'Float' in native in IEEE-754 format and host endian.
 putFloathost :: Float -> Put
-putFloathost = castPut . S.putWord32host . floatToWord
+putFloathost = castPut 4 . S.putWord32host . floatToWord
 {-# INLINE putFloathost #-}
 
 -- | Write a 'Double' in native in IEEE-754 format and host endian.
 putDoublehost :: Double -> Put
-putDoublehost = castPut . S.putWord64host . doubleToWord
+putDoublehost = castPut 8 . S.putWord64host . doubleToWord
 {-# INLINE putDoublehost #-}
-
--- | Write a character using UTF-8 encoding.
-putCharUtf8 :: Char -> Put
-putCharUtf8 = castPut . S.putCharUtf8
-{-# INLINE putCharUtf8 #-}
-
--- | Write a 'String' using UTF-8 encoding.
-putStringUtf8 :: String -> Put
-putStringUtf8 = castPut . S.putStringUtf8
-{-# INLINE putStringUtf8 #-}

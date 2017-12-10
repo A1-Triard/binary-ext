@@ -127,10 +127,6 @@ instance MonadBaseControl b m => MonadBaseControl b (GetC e m) where
 -- | A 'ConduitM' with internal transformers supposed to a binary deserialization.
 type GetM o e m = ConduitM ByteChunk o (GetC e m)
 
-instance MonadBase b m => MonadBase b (GetM o e m) where
-  liftBase = liftBaseDefault
-  {-# INLINE liftBase #-}
-
 instance (Monoid e, Monad m) => Alternative (GetM o e m) where
   empty = throwError mempty
   {-# INLINE empty #-}
