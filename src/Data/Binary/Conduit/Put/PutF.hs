@@ -67,6 +67,11 @@ instance Applicative m => Applicative (PutF m) where
 instance Monad m => Semigroup (PutF m a) where
   F (a, a_enc) <> F (b, b_enc) = F (a >> b, a_enc `mappend` b_enc)
   {-# INLINE (<>) #-}
+instance Monad m => Monoid (PutF m ()) where
+  mempty = F (return (), mempty)
+  {-# INLINE mempty #-}
+  F (a, a_enc) `mappend` F (b, b_enc) = F (a >> b, a_enc `mappend` b_enc)
+  {-# INLINE mappend #-}
 
 -- | A 'ConduitM' with internal transformers supposed to a binary serialization.
 type PutM i m = PutF (ConduitM i S.ByteString m)
