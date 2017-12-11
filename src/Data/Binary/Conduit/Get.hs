@@ -28,21 +28,16 @@ module Data.Binary.Conduit.Get
   ( Decoding
   , startDecoding
   , decodingBytesRead
-  , decodingGot
-  , decodingUngot
+  , decoded
   , GetC
-  , ByteChunk
   , GetM
   , runGetC
   , getC
-  , getChunk
-  , ungetChunk
   , mapError
   , Get
   , runGet
   , bytesRead
   , castGet
-  , endOfInput
   , onError
   , withError
   , ifError
@@ -82,9 +77,7 @@ module Data.Binary.Conduit.Get
   , getDoublehost
   ) where
 
-import Control.Monad hiding (fail)
 import Control.Monad.Error.Class
-import Control.Monad.Loops
 import qualified Data.Binary.Get as S
 import Data.Binary.IEEE754 (wordToFloat, wordToDouble)
 import qualified Data.Binary.IEEE754 as S hiding (floatToWord, wordToFloat, doubleToWord, wordToDouble)
@@ -95,6 +88,7 @@ import qualified Data.ByteString.Lazy as B hiding (ByteString, head, last, init,
 import Data.Conduit
 import Data.Conduit.Lift
 import Data.Int
+import Data.Maybe
 import Data.Semigroup hiding (Option)
 import Data.Word
 import Data.Binary.Conduit.Get.GetC
@@ -116,23 +110,18 @@ bytesRead = getC $ \ !x -> return (Right $ decodingBytesRead x, x)
 -- | Run the given 'S.Get' monad from binary package
 -- and convert result into 'Get'.
 castGet :: S.Get a -> Get String a
-castGet !g =
-  go (S.runGetIncremental g)
+castGet !g = getC $
+  go (S.runGetIncremental g) SB.empty
   where
-    go (S.Done !t _ !r) = ungetChunk t >> return r
-    go (S.Fail !t _ !e) = ungetChunk t >> throwError e
-    go (S.Partial !c) = go =<< c <$> getChunk
+  go (S.Done !rest _ !result) !chunk !decoding =
+    if SB.null rest
+      then return (Right result, decoded chunk decoding)
+      else leftover rest >> return (Right result, decoded (SB.take (SB.length chunk - SB.length rest) chunk) decoding)
+  go (S.Fail _ _ !err) !chunk !decoding = return (Left err, decoded chunk decoding)
+  go (S.Partial !continue) !chunk !decoding = do
+    next <- await
+    go (continue next) (fromMaybe SB.empty next) (decoded chunk decoding)
 {-# INLINE castGet #-}
-
--- | 'True' if there are no input elements left.
--- This function may remove empty leading chunks from the stream, but otherwise will not modify it.
-endOfInput :: Get e Bool
-endOfInput =
-  untilJust $ maybe
-    (return $ Just True)
-    (\i -> if SB.null i then return Nothing else ungetChunk i >> return (Just False))
-    =<< getChunk
-{-# INLINE endOfInput #-}
 
 -- | 'onError' is 'mapError' with its arguments flipped.
 onError :: Monad m => GetM o e m a -> (e -> e') -> GetM o e' m a
@@ -156,27 +145,25 @@ voidError = mapError (const ())
 
 -- | Skip ahead @n@ bytes. Fails if fewer than @n@ bytes are available.
 skip :: Word64 -> Get () ()
-skip !n = do
-  !consumed <- go 0
-  if consumed < n
-    then throwError ()
-    else return ()
+skip !n = getC $
+  go 0
   where
-    go consumed
-      | consumed > n = error "Data.Binary.Conduit.Get.skip"
-      | consumed == n = return n
-      | otherwise = do
-        !mi <- getChunk
-        case mi of
-          Nothing -> return consumed
-          Just !i -> do
-              let !gap = n - consumed
-              if gap >= fromIntegral (SB.length i)
-                then do
-                  go $ consumed + fromIntegral (SB.length i)
-                else do
-                  ungetChunk $ SB.drop (fromIntegral gap) i
-                  return n
+  go !consumed !decoding
+    | consumed > n = error "Data.Binary.Conduit.Get.skip"
+    | consumed == n = return (Right (), decoding)
+    | otherwise = do
+      !mi <- await
+      case mi of
+        Nothing -> return (Left (), decoding)
+        Just !i -> do
+          let !gap = n - consumed
+          if gap >= fromIntegral (SB.length i)
+            then do
+              go (consumed + fromIntegral (SB.length i)) (decoded i decoding)
+            else do
+              let (!got, !rest) = SB.splitAt (fromIntegral gap) i
+              leftover rest
+              return (Right (), decoded got decoding)
 {-# INLINE skip #-}
 
 -- | Isolate a decoder to operate with a fixed number of bytes, and fail if
@@ -197,81 +184,103 @@ isolate !n unexpected_eof f !g = do
     then throwError $ f $ o2 - o1
     else return r
   where
-    go consumed
-      | consumed > n = error "Data.Binary.Conduit.Get.isolate"
-      | consumed == n = return ()
-      | otherwise = do
-          !i <- maybe (throwError unexpected_eof) return =<< await
-          let !gap = n - consumed
-          if gap >= fromIntegral (SB.length i)
-            then do
-              yield i
-              go $ consumed + fromIntegral (SB.length i)
-            else do
-              let (!h, !t) = SB.splitAt (fromIntegral gap) i
-              leftover t
-              yield h
+  go consumed
+    | consumed > n = error "Data.Binary.Conduit.Get.isolate"
+    | consumed == n = return ()
+    | otherwise = do
+      !i <- maybe (throwError unexpected_eof) return =<< await
+      let !gap = n - consumed
+      if gap >= fromIntegral (SB.length i)
+        then do
+          yield i
+          go $ consumed + fromIntegral (SB.length i)
+        else do
+          let (!h, !t) = SB.splitAt (fromIntegral gap) i
+          leftover t
+          yield h
 {-# INLINE isolate #-}
 
 -- | An efficient get method for strict 'S.ByteString's. Fails if fewer than @n@
 -- bytes are left in the input. If @n <= 0@ then the empty string is returned.
 getByteString :: Int -> Get () S.ByteString
-getByteString !n = do
-  go SB.empty
+getByteString !n = getC $
+  go SB.empty 0
   where
-    go consumed
-      | SB.length consumed >= n = do
-        let (!h, !t) = SB.splitAt n consumed
-        if SB.null t then return () else ungetChunk t
-        return h
-      | otherwise = do
-        !i <- maybe (throwError ()) return =<< getChunk
-        go $ consumed <> i
+  go consumed !consumed_length !decoding
+    | consumed_length >= n = return (Right consumed, decoding)
+    | otherwise = do
+      !mi <- await
+      case mi of
+        Nothing -> return (Left (), decoding)
+        Just !i -> do
+          let !gap = n - consumed_length
+          if gap >= SB.length i
+            then do
+              go (consumed <> i) (consumed_length + fromIntegral (SB.length i)) (decoded i decoding)
+            else do
+              let (!got, !rest) = SB.splitAt gap i
+              leftover rest
+              return (Right (consumed <> got), decoded got decoding)
 {-# INLINE getByteString #-}
 
 -- | An efficient get method for lazy 'ByteString's. Fails if fewer than @n@
 -- bytes are left in the input. If @n <= 0@ then the empty string is returned.
 getLazyByteString :: Int64 -> Get () ByteString
-getLazyByteString n = do
-  go B.empty
+getLazyByteString n = getC $
+  go B.empty 0
   where
-    go consumed
-      | B.length consumed >= n = do
-        let (!h, !t) = B.splitAt n consumed
-        if B.null t then return () else forM_ (reverse $ B.toChunks t) ungetChunk
-        return h
-      | otherwise = do
-        !i <- maybe (throwError ()) return =<< getChunk
-        go $ consumed <> B.fromStrict i
+  go consumed !consumed_length !decoding
+    | consumed_length >= n = return (Right consumed, decoding)
+    | otherwise = do
+      !mi <- await
+      case mi of
+        Nothing -> return (Left (), decoding)
+        Just !i -> do
+          let !gap = n - consumed_length
+          if gap >= fromIntegral (SB.length i)
+            then do
+              go (consumed <> B.fromStrict i) (consumed_length + fromIntegral (SB.length i)) (decoded i decoding)
+            else do
+              let (!got, !rest) = SB.splitAt (fromIntegral gap) i
+              leftover rest
+              return (Right (consumed <> B.fromStrict got), decoded got decoding)
 {-# INLINE getLazyByteString #-}
 
 -- | Get a lazy 'ByteString' that is terminated with a NUL byte.
 -- The returned string does not contain the NUL byte.
 -- Fails if it reaches the end of input without finding a NUL.
 getLazyByteStringNul :: Get () ByteString
-getLazyByteStringNul =
+getLazyByteStringNul = getC $
   go B.empty
   where
-  go consumed = do
-    !i <- maybe (throwError ()) return =<< getChunk
-    let (!h, !t) = SB.span (/= 0) i
-    let !r = consumed <> B.fromStrict h
-    if SB.length t == 0
-      then go r
-      else ungetChunk (SB.drop 1 t) >> return r
+  go consumed !decoding = do
+    !mi <- await
+    case mi of
+      Nothing -> return (Left (), decoding)
+      Just !i -> do
+        let (!h, !t) = SB.span (/= 0) i
+        let r = consumed <> B.fromStrict h
+        let !d = decoded h decoding
+        if SB.length t == 0
+          then go r d
+          else do
+            let (!z, !zt) = SB.splitAt 1 t
+            leftover zt
+            return (Right r, decoded z $ decoded h decoding)
+{-# INLINE getLazyByteStringNul #-}
 
 -- | Get the remaining bytes as a lazy 'ByteString'.
 -- Note that this can be an expensive function to use as it
 -- forces reading all input and keeping the string in-memory.
 getRemainingLazyByteString :: Get e ByteString
-getRemainingLazyByteString =
+getRemainingLazyByteString = getC $
   go B.empty
   where
-  go consumed = do
-    !mi <- getChunk
+  go consumed !decoding = do
+    !mi <- await
     case mi of
-      Nothing -> return consumed
-      Just !i -> go $ consumed <> B.fromStrict i
+      Nothing -> return (Right consumed, decoding)
+      Just !i -> go (consumed <> B.fromStrict i) (decoded i decoding)
 
 voidCastGet :: S.Get a -> Get () a
 voidCastGet = voidError . castGet

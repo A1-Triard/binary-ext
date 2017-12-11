@@ -19,7 +19,6 @@ library
                  , Data.Binary.Conduit.Put
   other-modules: Data.Binary.Conduit.Get.GetC
                , Data.Binary.Conduit.Put.PutF
-               , Data.Binary.Conduit.Base
   build-depends: base >= 4.7 && < 5
                , binary
                , bytestring

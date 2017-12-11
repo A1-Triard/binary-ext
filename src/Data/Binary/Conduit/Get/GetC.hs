@@ -21,15 +21,11 @@ module Data.Binary.Conduit.Get.GetC
   ( Decoding
   , startDecoding
   , decodingBytesRead
-  , decodingGot
-  , decodingUngot
+  , decoded
   , GetC
-  , ByteChunk
   , GetM
   , runGetC
   , getC
-  , getChunk
-  , ungetChunk
   , mapError
   ) where
 
@@ -51,21 +47,12 @@ import Data.Conduit
 import Data.Conduit.Lift
 import Data.Maybe hiding (fromJust)
 import Data.Word
-import Data.Binary.Conduit.Base
 
 -- | 'GetC' monad state.
 data Decoding = Decoding
   { decodingBytesRead :: !Word64 -- ^ GetM the total number of bytes read to this point.
   , tracking :: !(Maybe [S.ByteString])
   } deriving Show
-
-dropBytes :: Word64 -> [S.ByteString] -> [S.ByteString]
-dropBytes 0 !x = x
-dropBytes _ [] = error "Data.Binary.Conduit.Get.dropBytes"
-dropBytes !n !(h : t)
-  | fromIntegral (SB.length h) <= n = dropBytes (n - fromIntegral (SB.length h)) t
-  | otherwise = SB.take (SB.length h - fromIntegral n) h : t
-{-# INLINE dropBytes #-}
 
 -- | Construct 'GetC' initial state.
 startDecoding :: Word64 -> Decoding
@@ -74,21 +61,12 @@ startDecoding !bytes_read_before = Decoding { decodingBytesRead = bytes_read_bef
 
 -- | Modify 'GetC' state: mark byte string @inp@ as read.
 -- See 'getC' for usage example.
-decodingGot :: S.ByteString -> Decoding -> Decoding
-decodingGot !inp !s = Decoding
+decoded :: S.ByteString -> Decoding -> Decoding
+decoded !inp !s = Decoding
   { decodingBytesRead = decodingBytesRead s + fromIntegral (SB.length inp)
   , tracking = (inp :) <$> tracking s
   }
-{-# INLINE decodingGot #-}
-
--- | Modify 'GetC' state: mark last read @bytes_count@ as unread.
--- See 'getC' for usage example.
-decodingUngot :: Word64 -> Decoding -> Decoding
-decodingUngot !bytes_count !s = Decoding
-  { decodingBytesRead = decodingBytesRead s - fromIntegral bytes_count
-  , tracking = dropBytes bytes_count <$> tracking s
-  }
-{-# INLINE decodingUngot #-}
+{-# INLINE decoded #-}
 
 -- | Internal transformers for 'Get' with error type @e@, host monad @m@ and decoder result @a@.
 newtype GetC e m a = C { runC :: ExceptT e (StateT Decoding m) a }
@@ -125,7 +103,7 @@ instance MonadBaseControl b m => MonadBaseControl b (GetC e m) where
   {-# INLINE restoreM #-}
 
 -- | A 'ConduitM' with internal transformers supposed to a binary deserialization.
-type GetM o e m = ConduitM ByteChunk o (GetC e m)
+type GetM o e m = ConduitM S.ByteString o (GetC e m)
 
 instance (Monoid e, Monad m) => Alternative (GetM o e m) where
   empty = throwError mempty
@@ -145,7 +123,7 @@ transaction !g = getC $ \ !c -> do
 -- | Run a 'Get' monad, unwrapping all internal transformers in a reversible way.
 -- @'getC' . 'flip' runGetC = 'id'@
 runGetC :: Monad m => Decoding -> GetM o e m a -> ConduitM S.ByteString o m (Either e a, Decoding)
-runGetC !decoding = runStateC decoding . runExceptC . transPipe runC . mapInput ByteChunk (Just . bs)
+runGetC !decoding = runStateC decoding . runExceptC . transPipe runC
 {-# INLINE runGetC #-}
 
 -- | Custom 'Get'.
@@ -167,30 +145,8 @@ runGetC !decoding = runStateC decoding . runExceptC . transPipe runC . mapInput 
 -- >             lift $ modify' $ decodingUngot $ SB.length t
 -- Please note, the above code is just a sample, and this particular function can be defined in easy way without @getC@.
 getC :: Monad m => (Decoding -> ConduitM S.ByteString o m (Either e a, Decoding)) -> GetM o e m a
-getC = mapInput bs (Just . ByteChunk) . transPipe C . exceptC . stateC
+getC = transPipe C . exceptC . stateC
 {-# INLINE getC #-}
-
--- | Wait for a single input value from upstream. If no data is available, returns 'Nothing'.
--- Once await returns 'Nothing', subsequent calls will also return 'Nothing'.
--- @getChunk@ is 'await' with injected inner 'decodingGot'.
-getChunk :: Monad m => GetM o e m (Maybe S.ByteString)
-getChunk = do
-  !mi <- await
-  case mi of
-    Nothing -> return Nothing
-    Just (ByteChunk !i) -> do
-      lift $ C $ lift $ modify' $ decodingGot i
-      return $ Just i
-{-# INLINE getChunk #-}
-
--- | Provide a single piece of leftover input to be consumed by the next component in the current monadic binding.
--- Note: it is highly encouraged to only return leftover values from input already consumed from upstream.
--- @ungetChunk@ is 'leftover' with injected inner 'decodingUngot'.
-ungetChunk :: Monad m => S.ByteString -> GetM o e m ()
-ungetChunk !i = do
-  leftover $ ByteChunk i
-  lift $ C $ lift $ modify' $ decodingUngot $ fromIntegral $ SB.length i
-{-# INLINE ungetChunk #-}
 
 -- | Convert decoder error. If the decoder fails, the given function will be applied
 -- to the error message.

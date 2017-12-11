@@ -23,10 +23,12 @@ import Control.Monad.Error.Class
 import Control.Monad.Loops
 import Data.Bits
 import qualified Data.ByteString as S (ByteString)
+import qualified Data.ByteString as SB hiding (ByteString, head, last, init, tail)
 import Data.Char
 import Data.Conduit
 import qualified Data.Conduit.Combinators as N
 import Data.Functor.Identity
+import Data.Semigroup hiding (Option)
 import Data.Word
 import Test.HUnit.Base hiding (Label)
 import Data.Binary.Conduit.Get
@@ -97,7 +99,7 @@ testInput7 =
 
 ensureEof :: e -> Get e ()
 ensureEof e = do
-  eof <- endOfInput
+  eof <- N.nullE
   if eof then return () else throwError e
 
 get1 :: Monad m => GetM Word16 Bool m ()
@@ -142,7 +144,7 @@ eofError :: Assertion
 eofError = do
   let (!e, !c) = runIdentity $ N.yieldMany testInput4 $$ runGet getInt64host
   assertEqual "" (Left ()) e
-  assertEqual "" 0 c
+  assertEqual "" 3 c
 
 eofOrNotEof :: Assertion
 eofOrNotEof = do
@@ -205,7 +207,7 @@ testAlternativeRollback = do
   assertEqual "" 8 c
 
 recordBody :: Get () [Word64]
-recordBody = whileM (not <$> endOfInput) $ isolate 8 () (const ()) getWord64le
+recordBody = whileM (not <$> N.nullE) $ isolate 8 () (const ()) getWord64le
 
 record :: Word64 -> Get (Either (Maybe Word64) ()) [Word64]
 record z = isolate z (Left Nothing) (Left . Just) $ mapError Right recordBody
@@ -229,9 +231,29 @@ testRecords = do
   assertEqual "" [[3978425819141910832, 3978425819141910832, 3978425819141910832], [3978425819141910832, 3978425819141910832], [3978425819141910832]] r
   assertEqual "" 48 c
 
+takeE :: Monad m => Int -> ConduitM S.ByteString o m S.ByteString
+takeE !n =
+  go SB.empty 0
+  where
+  go consumed !consumed_length
+    | consumed_length >= n = return consumed
+    | otherwise = do
+      !mi <- await
+      case mi of
+        Nothing -> error "takeE"
+        Just !i -> do
+          let !gap = n - consumed_length
+          if gap >= SB.length i
+            then do
+              go (consumed <> i) (consumed_length + fromIntegral (SB.length i))
+            else do
+              let (!got, !rest) = SB.splitAt gap i
+              leftover rest
+              return (consumed <> got)
+
 testLeftoversInIsolate :: Assertion
 testLeftoversInIsolate = do
-  let !i = isolate 4 (Left Nothing) (Left . Just) $ mapError Right $ (ungetChunk =<< getByteString 4) >> skip 2
+  let !i = isolate 4 (Left Nothing) (Left . Just) $ mapError Right $ (leftover =<< takeE 4) >> skip 2
   let
     !g = do
       catchError i $ const $ return ()
