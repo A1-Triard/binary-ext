@@ -57,10 +57,18 @@ encoded !producer !bytes_count !s = Encoding
   }
 {-# INLINE encoded #-}
 
--- | Monad wrapper for 'Put' with host monad @m@.
+-- | Wrappers for 'Put' with host monad @m@ and monad result @a@ (usually @()@).
 newtype PutS m a = S { runS :: State (Encoding m) a }
 
--- | Run a 'Put' functor, unwrapping all wrappers in a reversible way.
+deriving instance Monad (PutS m)
+deriving instance Functor (PutS m)
+deriving instance MonadFix (PutS m)
+deriving instance Applicative (PutS m)
+
+-- | A 'ConduitM' with wrappers supposed to a binary serialization.
+type PutM i m a = PutS (ConduitM i S.ByteString m) a
+
+-- | Run a 'Put' monad, unwrapping all wrappers in a reversible way.
 -- @'putS' . runPutS = 'id'@
 runPutS :: PutS m a -> Encoding m -> (a, Encoding m)
 runPutS = runState . runS
@@ -71,11 +79,3 @@ runPutS = runState . runS
 putS :: (Encoding m -> (a, Encoding m)) -> PutS m a
 putS = S . state
 {-# INLINE putS #-}
-
-deriving instance Monad (PutS m)
-deriving instance Functor (PutS m)
-deriving instance MonadFix (PutS m)
-deriving instance Applicative (PutS m)
-
--- | A 'ConduitM' in wrapping functor supposed to a binary serialization.
-type PutM i m a = PutS (ConduitM i S.ByteString m) a
