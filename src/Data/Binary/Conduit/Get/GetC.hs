@@ -129,21 +129,22 @@ runGetC !decoding = runStateC decoding . runExceptC . transPipe runC
 -- | Custom 'Get'.
 -- @getC . 'flip' 'runGetC' = 'id'@
 -- Example:
--- > skipUntilZero :: Get e ()
--- > skipUntilZero = getC $ flip runStateC $ do
--- >   untilM_ (return ()) $ do
--- >     !m_inp <- await
--- >     case m_inp of
--- >       Nothing -> return True
--- >       Just !inp -> do
--- >         lift $ modify' $ decodingGot inp
--- >         case SB.elemIndex 0 inp of
--- >           Nothing -> return ()
--- >           Just !i -> do
--- >             let (!h, !t) = SB.splitAt i inp
--- >             leftover t
--- >             lift $ modify' $ decodingUngot $ SB.length t
--- Please note, the above code is just a sample, and this particular function can be defined in easy way without @getC@.
+-- > skipUntilZero :: Get e Bool
+-- > skipUntilZero :: Get e Bool
+-- > skipUntilZero = getC $ flip runStateC $ untilJust $ do
+-- >   !m_inp <- await
+-- >   case m_inp of
+-- >     Nothing -> return $ Just $ Right False
+-- >     Just !inp -> do
+-- >       case SB.elemIndex 0 inp of
+-- >         Nothing -> do
+-- >           lift $ modify' $ decoded inp
+-- >           return Nothing
+-- >         Just !i -> do
+-- >           let (!h, !t) = SB.splitAt i inp
+-- >           leftover t
+-- >           lift $ modify' $ decoded h
+-- >           return $ Just $ Right True
 getC :: Monad m => (Decoding -> ConduitM S.ByteString o m (Either e a, Decoding)) -> GetM o e m a
 getC = transPipe C . exceptC . stateC
 {-# INLINE getC #-}

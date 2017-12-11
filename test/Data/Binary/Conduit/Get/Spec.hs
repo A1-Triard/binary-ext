@@ -21,14 +21,19 @@ module Data.Binary.Conduit.Get.Spec
 import Control.Applicative
 import Control.Monad.Error.Class
 import Control.Monad.Loops
+import Control.Monad.Trans.Class
+import Control.Monad.Trans.State.Strict
 import Data.Bits
 import qualified Data.ByteString as S (ByteString)
 import qualified Data.ByteString as SB hiding (ByteString, head, last, init, tail)
+import Data.ByteString.Lazy (ByteString)
 import Data.Char
 import Data.Conduit
 import qualified Data.Conduit.Combinators as N
+import Data.Conduit.Lift
 import Data.Functor.Identity
 import Data.Semigroup hiding (Option)
+import Data.Void
 import Data.Word
 import Test.HUnit.Base hiding (Label)
 import Data.Binary.Conduit.Get
@@ -49,6 +54,7 @@ tests = TestList
   , TestCase testAlternativeRollback
   , TestCase testRecords
   , TestCase testLeftoversInIsolate
+  , TestCase testSkipUntilZero
   ]
 
 testInput1 :: [S.ByteString]
@@ -263,3 +269,32 @@ testLeftoversInIsolate = do
   let (!e, !c) = runIdentity $ yield "ABCD" $$ runGet g
   assertEqual "" (Right "CD") e
   assertEqual "" 4 c
+
+skipUntilZero :: Get e Bool
+skipUntilZero = getC $ flip runStateC $ untilJust $ do
+  !m_inp <- await
+  case m_inp of
+    Nothing -> return $ Just $ Right False
+    Just !inp -> do
+      case SB.elemIndex 0 inp of
+        Nothing -> do
+          lift $ modify' $ decoded inp
+          return Nothing
+        Just !i -> do
+          let (!h, !t) = SB.splitAt i inp
+          leftover t
+          lift $ modify' $ decoded h
+          return $ Just $ Right True
+
+testZeroInput1 :: [S.ByteString]
+testZeroInput1 =
+  [ "0123"
+  , "45\0zx"
+  , "8"
+  ]
+
+testSkipUntilZero :: Assertion
+testSkipUntilZero = do
+  let (!r, !c) = runIdentity $ N.yieldMany testZeroInput1 $$ runGet (skipUntilZero >> getRemainingLazyByteString)
+  assertEqual "" ((Right "\0zx8") :: Either Void ByteString) r
+  assertEqual "" 10 c
