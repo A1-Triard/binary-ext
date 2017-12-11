@@ -19,16 +19,16 @@
 
 module Data.Binary.Conduit.Put
   ( Encoding
-  , encodingBytesGoingWrite
-  , encodingGoingPut
-  , PutF
-  , runPutF
-  , putF
+  , encodingBytesWrote
+  , startEncoding
+  , encoded
+  , PutS
+  , runPutS
+  , putS
   , PutM
   , Put
   , runPut
-  , runPutM
-  , bytesGoingWrite
+  , bytesWrote
   , castPut
   , putWord8
   , putInt8
@@ -76,33 +76,27 @@ import qualified Data.ByteString.Short as HB hiding (ShortByteString)
 import Data.Conduit
 import Data.Int
 import Data.Word
-import Data.Binary.Conduit.Put.PutF
+import Data.Binary.Conduit.Put.PutS
 
 -- | The shortening of 'PutM' for the most common use case.
 type Put = forall i m. Monad m => PutM i m ()
 
--- | Run an encoder presented as a 'PutM' functor.
--- Returns a conduit and bytes count going to write.
-runPutM :: PutM i m a -> (ConduitM i S.ByteString m a, Word64)
-runPutM = (\(!r, !s) -> (r, encodingBytesGoingWrite s)) . runPutF
-{-# INLINE runPutM #-}
-
--- | Run an encoder presented as a 'PutM' functor.
--- Returns a conduit.
-runPut :: PutM i m a -> ConduitM i S.ByteString m a
-runPut = fst . runPutM
+-- | Run an encoder presented as a 'Put' monad.
+-- Returns 'Producer'.
+runPut :: PutM i m () -> ConduitM i S.ByteString m ()
+runPut !p = runEncoding $ snd $ runPutS p $ startEncoding 0 $ return ()
 {-# INLINE runPut #-}
 
--- | Get the total number of bytes going to write during encoding.
-bytesGoingWrite :: PutM i m a -> Word64
-bytesGoingWrite = snd . runPutM
-{-# INLINE bytesGoingWrite #-}
+-- | Get the total number of bytes wrote to this point.
+bytesWrote :: PutM i m Word64
+bytesWrote = putS $ \ !s -> (encodingBytesWrote s, s)
+{-# INLINE bytesWrote #-}
 
 -- | Run the given 'S.Put' encoder from binary package
 -- producing the given bytes count
 -- and convert result into a 'Put'.
 castPut :: Word64 -> S.Put -> Put
-castPut !n !p = putF (mapM_ yield $ B.toChunks $ S.runPut p) (encodingGoingPut n)
+castPut !n !p = putS $ \ !s -> ((), mapM_ yield (B.toChunks $ S.runPut p) `encoded` n $ s)
 {-# INLINE castPut #-}
 
 -- | Write a byte.

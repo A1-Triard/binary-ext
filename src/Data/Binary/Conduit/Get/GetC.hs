@@ -50,9 +50,9 @@ import Data.Word
 
 -- | 'GetC' monad state.
 data Decoding = Decoding
-  { decodingBytesRead :: !Word64 -- ^ GetM the total number of bytes read to this point.
+  { decodingBytesRead :: !Word64 -- ^ Get the total number of bytes read to this point.
   , tracking :: !(Maybe [S.ByteString])
-  } deriving Show
+  }
 
 -- | Construct 'GetC' initial state.
 startDecoding :: Word64 -> Decoding
