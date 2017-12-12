@@ -50,6 +50,7 @@ test-suite binary-ext-test
   hs-source-dirs: test
   main-is: Spec.hs
   other-modules: Data.Binary.Conduit.Get.Spec
+               , Data.Binary.Conduit.Put.Spec
   build-depends: base
                , HUnit
                , binary-ext

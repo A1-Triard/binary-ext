@@ -88,6 +88,14 @@ runPut !p = runEncoding $ snd $ runPutS p $ startEncoding 0 $ return ()
 {-# INLINE runPut #-}
 
 -- | Get the total number of bytes wrote to this point.
+-- Can be used with 'mfix' to result bytes count prediction:
+-- > putWithSize :: Monad m => PutM i m () -> PutM i m ()
+-- > putWithSize !p = void $ mfix $ \size -> do
+-- >   putWord64le size
+-- >   before <- bytesWrote
+-- >   p
+-- >   after <- bytesWrote
+-- >   return $ after - before
 bytesWrote :: PutM i m Word64
 bytesWrote = putS $ \ !s -> (encodingBytesWrote s, s)
 {-# INLINE bytesWrote #-}

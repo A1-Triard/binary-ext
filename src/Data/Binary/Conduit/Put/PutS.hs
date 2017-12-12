@@ -57,7 +57,7 @@ encoded !producer !bytes_count !s = Encoding
   }
 {-# INLINE encoded #-}
 
--- | Wrappers for 'Put' with host monad @m@ and monad result @a@ (usually @()@).
+-- | Wrappers for 'Put' with inner monad @m@ and result @a@ (usually @()@).
 newtype PutS m a = S { runS :: State (Encoding m) a }
 
 deriving instance Monad (PutS m)
