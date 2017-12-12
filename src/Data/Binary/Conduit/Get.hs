@@ -36,13 +36,13 @@ module Data.Binary.Conduit.Get
   , getC
   , mapError
   , ByteOffset (..)
+  , DefaultDecodingState
   , Get
   , runGet
   , bytesRead
   , castGet
   , onError
   , withError
-  , ifError
   , skip
   , isolate
   , getByteString
@@ -92,12 +92,17 @@ import Data.Conduit.Lift
 import Data.Int
 import Data.Maybe
 import Data.Semigroup hiding (Option)
+import Data.Void
 import Data.Word
 import Data.Binary.Conduit.ByteOffset
 import Data.Binary.Conduit.Get.GetC
 
+class (DecodingState s, DecodingToken s ~ S.ByteString, DecodingBytesRead s) => DefaultDecodingState s where
+
+instance (DecodingState s, DecodingToken s ~ S.ByteString, DecodingBytesRead s) => DefaultDecodingState s where
+
 -- | The shortening of 'GetM' for the most common use case.
-type Get e a = forall s o m. (DecodingState s, DecodingToken s ~ S.ByteString, DecodingBytesRead s, Monad m) => GetM s S.ByteString o e m a
+type Get e a = forall s o m. (DefaultDecodingState s, Monad m) => GetM s S.ByteString o e m a
 
 -- | Run a decoder presented as a 'Get' monad.
 -- Returns decoder result and consumed bytes count.
@@ -127,20 +132,17 @@ castGet !g = getC $
 {-# INLINE castGet #-}
 
 -- | 'onError' is 'mapError' with its arguments flipped.
-onError :: Monad m => GetM s i o e m a -> (e -> e') -> GetM  s i o e' m a
-onError = flip mapError
+onError :: Monad m => GetM s i o e m a -> (e -> GetM s i o Void m e') -> GetM  s i o e' m a
+onError !g h =
+  mapError (either (error "Data.Binary.Conduit.Get.onError") id)
+  $ catchError (mapError Left g)
+  $ \e -> (throwError . Right) =<< mapError absurd (h $ either id (error "Data.Binary.Conduit.Get.onError") e)
 {-# INLINE onError #-}
 
--- | Set decoder error. If the decoder fails, the given error will be used
--- as an error message.
-withError :: Monad m => e -> GetM s i o () m a -> GetM s i o e m a
-withError e = mapError (const e)
-{-# INLINE withError #-}
-
 -- | 'ifError' is 'withError' with its arguments flipped.
-ifError :: Monad m => GetM s i o () m a -> e -> GetM s i o e m a
-ifError = flip withError
-{-# INLINE ifError #-}
+withError :: Monad m => GetM s i o () m a -> GetM s i o Void m e -> GetM s i o e m a
+withError !g h = onError g (const h)
+{-# INLINE withError #-}
 
 voidError :: Monad m => GetM s i o e m a -> GetM s i o () m a
 voidError = mapError (const ())

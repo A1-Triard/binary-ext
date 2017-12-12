@@ -28,6 +28,8 @@ module Data.Binary.Conduit.Put
   , runPutS
   , putS
   , PutM
+  , ByteOffset (..)
+  , DefaultEncodingState
   , Put
   , runPut
   , bytesWrote
@@ -81,8 +83,12 @@ import Data.Word
 import Data.Binary.Conduit.ByteOffset
 import Data.Binary.Conduit.Put.PutS
 
+class (EncodingState s, EncodingToken s ~ Word64, EncodingBytesWrote s) => DefaultEncodingState s where
+
+instance (EncodingState s, EncodingToken s ~ Word64, EncodingBytesWrote s) => DefaultEncodingState s where
+
 -- | The shortening of 'PutM' for the most common use case.
-type Put = forall s i m. (EncodingState s, EncodingToken s ~ Word64, EncodingBytesWrote s, Monad m) => PutM s i S.ByteString m ()
+type Put = forall s i m. (DefaultEncodingState s, Monad m) => PutM s i S.ByteString m ()
 
 -- | Run an encoder presented as a 'Put' monad.
 -- Returns 'Producer'.
@@ -92,7 +98,7 @@ runPut !p = runEncoding $ snd $ runPutS p $ startEncoding $ ByteOffset 0
 
 -- | Get the total number of bytes wrote to this point.
 -- Can be used with 'mfix' to result bytes count prediction:
--- > putWithSize :: Monad m => PutM i m () -> PutM i m ()
+-- > putWithSize :: (DefaultEncodingState s, Monad m) => PutM s i S.ByteString m () -> PutM s i S.ByteString m ()
 -- > putWithSize !p = void $ mfix $ \size -> do
 -- >   putWord64le size
 -- >   before <- bytesWrote

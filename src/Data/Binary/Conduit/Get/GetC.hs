@@ -138,7 +138,6 @@ runGetC !decoding = runStateC decoding . runExceptC . transPipe runC
 -- @getC . 'flip' 'runGetC' = 'id'@
 -- Example:
 -- > skipUntilZero :: Get e Bool
--- > skipUntilZero :: Get e Bool
 -- > skipUntilZero = getC $ flip runStateC $ untilJust $ do
 -- >   !m_inp <- await
 -- >   case m_inp of

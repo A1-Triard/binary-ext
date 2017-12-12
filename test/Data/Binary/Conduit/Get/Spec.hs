@@ -113,9 +113,9 @@ ensureEof e = do
 
 get1 :: (DecodingState s, DecodingToken s ~ S.ByteString, DecodingBytesRead s, Monad m) => GetM s S.ByteString Word16 Bool m ()
 get1 = do
-  yield =<< getWord16le `ifError` False
-  yield =<< getWord16le `ifError` False
-  yield =<< getWord16be `ifError` False
+  yield =<< mapError (const False) getWord16le
+  yield =<< mapError (const False) getWord16le
+  yield =<< mapError (const False) getWord16be
   ensureEof True
 
 get2 :: Get () Word64
@@ -266,7 +266,7 @@ testLeftoversInIsolate = do
   let
     !g = do
       catchError i $ const $ return ()
-      !r <- getByteString 2 `ifError` Right ()
+      !r <- mapError Right $ getByteString 2
       ensureEof $ Right ()
       return r
   let (!e, !c) = runIdentity $ yield "ABCD" $$ runGet g
