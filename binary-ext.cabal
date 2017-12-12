@@ -19,6 +19,7 @@ library
                  , Data.Binary.Conduit.Put
   other-modules: Data.Binary.Conduit.Get.GetC
                , Data.Binary.Conduit.Put.PutS
+               , Data.Binary.Conduit.ByteOffset
   build-depends: base >= 4.7 && < 5
                , binary
                , bytestring
@@ -34,7 +35,7 @@ library
                , transformers
                , transformers-base
   default-extensions: BangPatterns
-                    , DeriveFunctor
+                    , FlexibleContexts
                     , FlexibleInstances
                     , GeneralizedNewtypeDeriving
                     , MultiParamTypeClasses
@@ -68,7 +69,7 @@ test-suite binary-ext-test
                , transformers
                , transformers-base
   default-extensions: BangPatterns
-                    , DeriveFunctor
+                    , FlexibleContexts
                     , FlexibleInstances
                     , GeneralizedNewtypeDeriving
                     , MultiParamTypeClasses

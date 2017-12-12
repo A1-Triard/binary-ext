@@ -23,8 +23,10 @@ import Control.Monad.Error.Class
 import Control.Monad.Fix
 import Control.Monad.Trans.Class
 import Data.Bits
+import qualified Data.ByteString as S (ByteString)
 import Data.Conduit
 import qualified Data.Conduit.Combinators as N
+import Data.Word
 import Test.HUnit.Base hiding (Label)
 import Data.Binary.Conduit.Get
 import Data.Binary.Conduit.Put
@@ -34,7 +36,7 @@ tests = TestList
   [ TestCase testExample
   ]
 
-putWithSize :: Monad m => PutM i m () -> PutM i m ()
+putWithSize :: (EncodingState s, EncodingToken s ~ Word64, EncodingBytesWrote s, Monad m) => PutM s i S.ByteString m () -> PutM s i S.ByteString m ()
 putWithSize !p = void $ mfix $ \size -> do
   putWord64le size
   before <- bytesWrote
@@ -51,11 +53,11 @@ testExample = do
   runPut (putWithSize $ testPut1 3) $$ testResult
   where
   testResult = do
-    (\x -> lift $ assertEqual "" (Right $ 3 * fromIntegral (finiteBitSize (0 :: Word))) x) =<< fst <$> runGet getWord64le
-    (\x -> lift $ assertEqual "" (Right 1) x) =<< fst <$> runGet getWordhost
-    (\x -> lift $ assertEqual "" (Right 2) x) =<< fst <$> runGet getWordhost
-    (\x -> lift $ assertEqual "" (Right 3) x) =<< fst <$> runGet getWordhost
-    (\x -> lift $ assertEqual "" (Right ()) x) =<< fst <$> runGet (ensureEof ())
+    (\x -> lift $ assertEqual "" (Right $ 3 * fromIntegral (finiteBitSize (0 :: Word))) x) =<< runGet getWord64le
+    (\x -> lift $ assertEqual "" (Right 1) x) =<< runGet getWordhost
+    (\x -> lift $ assertEqual "" (Right 2) x) =<< runGet getWordhost
+    (\x -> lift $ assertEqual "" (Right 3) x) =<< runGet getWordhost
+    (\x -> lift $ assertEqual "" (Right ()) x) =<< runGet (ensureEof ())
 
 ensureEof :: e -> Get e ()
 ensureEof e = do

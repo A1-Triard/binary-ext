@@ -18,11 +18,12 @@
 -- and all functions, which could not be defined using 'PutS' public interface only.
 
 module Data.Binary.Conduit.Put.PutS
-  ( Encoding
-  , encodingBytesWrote
+  ( EncodingState (..)
+  , EncodingBytesWrote (..)
+  , Encoding
+  , encodingWrote
   , runEncoding
   , startEncoding
-  , encoded
   , PutS
   , runPutS
   , putS
@@ -31,51 +32,61 @@ module Data.Binary.Conduit.Put.PutS
 
 import Control.Monad.Fix
 import Control.Monad.Trans.State.Strict
-import qualified Data.ByteString as S (ByteString)
 import Data.Conduit
 import Data.Word
 
+class EncodingState s where
+  type EncodingToken s :: *
+  encoded :: EncodingToken s -> s -> s
+
+class EncodingBytesWrote s where
+  encodingBytesWrote :: s -> Word64
+
 -- | 'PutS' functor state.
-data Encoding m = Encoding
-  { encodingBytesWrote :: !Word64 -- ^ Get the total number of bytes wrote to this point.
+data Encoding s m = Encoding
+  { encodingWrote :: !s -- ^ Get the total number of bytes wrote to this point.
   , runEncoding :: !(m ()) -- ^ Get the 'Producer'.
   }
 
+instance (EncodingState s, Monad m) => EncodingState (Encoding s m) where
+  type EncodingToken (Encoding s m) = (m (), EncodingToken s)
+  encoded (!producer, !bytes_count) !s = Encoding
+    { encodingWrote = encoded bytes_count (encodingWrote s)
+    , runEncoding = runEncoding s >> producer
+    }
+  {-# INLINE encoded #-}
+
+instance (EncodingBytesWrote s) => EncodingBytesWrote (Encoding s m) where
+  encodingBytesWrote = encodingBytesWrote . encodingWrote
+  {-# INLINE encodingBytesWrote #-}
+
 -- | Construct 'PutS' initial state.
-startEncoding :: Applicative m => Word64 -> m () -> Encoding m
-startEncoding !bytes_wrote_before !produced_before = Encoding
-  { encodingBytesWrote = bytes_wrote_before
-  , runEncoding = produced_before
+startEncoding :: Applicative m => s -> Encoding s m
+startEncoding !bytes_wrote_before = Encoding
+  { encodingWrote = bytes_wrote_before
+  , runEncoding = pure ()
   }
 {-# INLINE startEncoding #-}
 
--- | Modify 'PutS' state: mark byte string @inp@ as wrote.
-encoded :: Monad m => m () -> Word64 -> Encoding m -> Encoding m
-encoded !producer !bytes_count !s = Encoding
-  { encodingBytesWrote = encodingBytesWrote s + bytes_count
-  , runEncoding = runEncoding s >> producer
-  }
-{-# INLINE encoded #-}
-
 -- | Wrappers for 'Put' with inner monad @m@ and result @a@ (usually @()@).
-newtype PutS m a = S { runS :: State (Encoding m) a }
+newtype PutS s m a = S { runS :: State (Encoding s m) a }
 
-deriving instance Monad (PutS m)
-deriving instance Functor (PutS m)
-deriving instance MonadFix (PutS m)
-deriving instance Applicative (PutS m)
+deriving instance Monad (PutS s m)
+deriving instance Functor (PutS s m)
+deriving instance MonadFix (PutS s m)
+deriving instance Applicative (PutS s m)
 
 -- | A 'ConduitM' with wrappers supposed to a binary serialization.
-type PutM i m a = PutS (ConduitM i S.ByteString m) a
+type PutM s i o m a = PutS s (ConduitM i o m) a
 
 -- | Run a 'Put' monad, unwrapping all wrappers in a reversible way.
 -- @'putS' . runPutS = 'id'@
-runPutS :: PutS m a -> Encoding m -> (a, Encoding m)
+runPutS :: PutS s m a -> Encoding s m -> (a, Encoding s m)
 runPutS = runState . runS
 {-# INLINE runPutS #-}
 
 -- | Custom 'Put'.
 -- @putS . 'runPutS' = 'id'@
-putS :: (Encoding m -> (a, Encoding m)) -> PutS m a
+putS :: (Encoding s m -> (a, Encoding s m)) -> PutS s m a
 putS = S . state
 {-# INLINE putS #-}

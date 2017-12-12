@@ -36,7 +36,7 @@ import Data.Semigroup hiding (Option)
 import Data.Void
 import Data.Word
 import Test.HUnit.Base hiding (Label)
-import Data.Binary.Conduit.Get
+import Data.Binary.Conduit.Get hiding (runGet)
 
 tests :: Test
 tests = TestList
@@ -56,6 +56,9 @@ tests = TestList
   , TestCase testLeftoversInIsolate
   , TestCase testSkipUntilZero
   ]
+
+runGet :: (DecodingState ByteOffset, Monad m) => GetM ByteOffset i o e m a -> ConduitM i o m (Either e a, Word64)
+runGet !g = (\(!r, !s) -> (r, decodingBytesRead s)) <$> runGetC (startDecoding $ ByteOffset 0) g
 
 testInput1 :: [S.ByteString]
 testInput1 =
@@ -108,7 +111,7 @@ ensureEof e = do
   eof <- N.nullE
   if eof then return () else throwError e
 
-get1 :: Monad m => GetM Word16 Bool m ()
+get1 :: (DecodingState s, DecodingToken s ~ S.ByteString, DecodingBytesRead s, Monad m) => GetM s S.ByteString Word16 Bool m ()
 get1 = do
   yield =<< getWord16le `ifError` False
   yield =<< getWord16le `ifError` False
@@ -218,7 +221,7 @@ recordBody = whileM (not <$> N.nullE) $ isolate 8 () (const ()) getWord64le
 record :: Word64 -> Get (Either (Maybe Word64) ()) [Word64]
 record z = isolate z (Left Nothing) (Left . Just) $ mapError Right recordBody
 
-records :: Monad m => GetM [Word64] (Either (Maybe Word64) ()) m ()
+records :: (DecodingState s, DecodingToken s ~ S.ByteString, DecodingBytesRead s, Monad m) => GetM s S.ByteString [Word64] (Either (Maybe Word64) ()) m ()
 records = do
   yield =<< record 24
   yield =<< record 16
