@@ -24,21 +24,12 @@
 -- While the binary's 'S.Get' is 'MonadFail', which leads to very ugly errors handling
 -- in complicated cases, local 'Get' is 'MonadError'.
 
-module Data.Binary.Conduit.Get
-  ( DecodingState (..)
-  , DecodingBytesRead (..)
-  , Decoding
-  , startDecoding
-  , decodingRead
-  , GetC
-  , GetM
-  , runGetC
-  , getC
-  , MonadMapError (..)
+module Data.Conduit.Parsers.Binary.Get
+  ( MonadMapError (..)
   , (?=>>)
   , (?>>)
-  , ByteOffset (..)
   , DefaultDecodingState
+  , GetM
   , Get
   , runGet
   , bytesRead
@@ -94,8 +85,8 @@ import Data.Maybe
 import Data.Semigroup hiding (Option)
 import Data.Word
 import Control.Monad.Error.Map
-import Data.Binary.Conduit.ByteOffset
-import Data.Binary.Conduit.Get.GetC
+import Data.Conduit.Parsers.Binary.ByteOffset
+import Data.Conduit.Parsers.GetC
 
 class (DecodingState s, DecodingToken s ~ S.ByteString, DecodingBytesRead s) => DefaultDecodingState s where
 

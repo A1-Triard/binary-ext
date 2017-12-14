@@ -14,7 +14,7 @@
 -- limitations under the License.
 --
 
-module Data.Binary.Conduit.Put.Spec
+module Data.Conduit.Parsers.Binary.Put.Spec
   ( tests
   ) where
 
@@ -27,8 +27,8 @@ import qualified Data.ByteString as S (ByteString)
 import Data.Conduit
 import qualified Data.Conduit.Combinators as N
 import Test.HUnit.Base hiding (Label)
-import Data.Binary.Conduit.Get
-import Data.Binary.Conduit.Put
+import Data.Conduit.Parsers.Binary.Get
+import Data.Conduit.Parsers.Binary.Put
 
 tests :: Test
 tests = TestList

@@ -17,7 +17,7 @@
 -- | This module provides the 'PutS' functor,
 -- and all functions, which could not be defined using 'PutS' public interface only.
 
-module Data.Binary.Conduit.Put.PutS
+module Data.Conduit.Parsers.PutS
   ( EncodingState (..)
   , EncodingBytesWrote (..)
   , Encoding

@@ -15,12 +15,13 @@ cabal-version: >=1.10
 
 library
   hs-source-dirs: src
-  exposed-modules: Data.Binary.Conduit.Get
-                 , Data.Binary.Conduit.Put
-                 , Control.Monad.Error.Map
-  other-modules: Data.Binary.Conduit.Get.GetC
-               , Data.Binary.Conduit.Put.PutS
-               , Data.Binary.Conduit.ByteOffset
+  exposed-modules: Control.Monad.Error.Map
+                 , Data.Conduit.Parsers.GetC
+                 , Data.Conduit.Parsers.PutS
+                 , Data.Conduit.Parsers.Binary.ByteOffset
+                 , Data.Conduit.Parsers.Binary.Get
+                 , Data.Conduit.Parsers.Binary.Put
+                 , Data.Conduit.Parsers.Text.TextOffset
   build-depends: base >= 4.7 && < 5
                , binary
                , bytestring
@@ -52,8 +53,8 @@ test-suite binary-ext-test
   type: exitcode-stdio-1.0
   hs-source-dirs: test
   main-is: Spec.hs
-  other-modules: Data.Binary.Conduit.Get.Spec
-               , Data.Binary.Conduit.Put.Spec
+  other-modules: Data.Conduit.Parsers.Binary.Get.Spec
+               , Data.Conduit.Parsers.Binary.Put.Spec
   build-depends: base
                , HUnit
                , binary-ext

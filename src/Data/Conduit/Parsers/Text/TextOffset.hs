@@ -24,32 +24,32 @@
 -- While the binary's 'S.Get' is 'MonadFail', which leads to very ugly errors handling
 -- in complicated cases, local 'Get' is 'MonadError'.
 
-module Data.Binary.Conduit.ByteOffset
-  ( ByteOffset (..)
+module Data.Conduit.Parsers.Text.TextOffset
+  ( TextOffset
   ) where
 
 import qualified Data.ByteString as S (ByteString)
 import qualified Data.ByteString as SB hiding (ByteString, head, last, init, tail)
 import Data.Word
-import Data.Binary.Conduit.Get.GetC
-import Data.Binary.Conduit.Put.PutS
+import Data.Conduit.Parsers.GetC
+import Data.Conduit.Parsers.PutS
 
-newtype ByteOffset = ByteOffset Word64 deriving Show
+newtype TextOffset = TextOffset Word64 deriving Show
 
-instance DecodingState ByteOffset where
-  type DecodingToken ByteOffset = S.ByteString
-  decoded !i (ByteOffset !s) = ByteOffset (s + fromIntegral (SB.length i))
+instance DecodingState TextOffset where
+  type DecodingToken TextOffset = S.ByteString
+  decoded !i (TextOffset !s) = TextOffset (s + fromIntegral (SB.length i))
   {-# INLINE decoded #-}
 
-instance DecodingBytesRead ByteOffset where
-  decodingBytesRead (ByteOffset !s) = s
+instance DecodingBytesRead TextOffset where
+  decodingBytesRead (TextOffset !s) = s
   {-# INLINE decodingBytesRead #-}
 
-instance EncodingState ByteOffset where
-  type EncodingToken ByteOffset = Word64
-  encoded !w (ByteOffset !s) = ByteOffset (s + w)
+instance EncodingState TextOffset where
+  type EncodingToken TextOffset = Word64
+  encoded !w (TextOffset !s) = TextOffset (s + w)
   {-# INLINE encoded #-}
 
-instance EncodingBytesWrote ByteOffset where
-  encodingBytesWrote (ByteOffset !s) = s
+instance EncodingBytesWrote TextOffset where
+  encodingBytesWrote (TextOffset !s) = s
   {-# INLINE encodingBytesWrote #-}

@@ -17,18 +17,8 @@
 -- | Despite binary's 'S.Put' is fully-functional construction (unlike 'S.Get'),
 -- we decided to provide this module for symmetry with 'Data.Binary.Conduit.Get'.
 
-module Data.Binary.Conduit.Put
-  ( EncodingState (..)
-  , EncodingBytesWrote (..)
-  , Encoding
-  , encodingWrote
-  , runEncoding
-  , startEncoding
-  , PutS
-  , runPutS
-  , putS
-  , PutM
-  , ByteOffset (..)
+module Data.Conduit.Parsers.Binary.Put
+  ( PutM
   , DefaultEncodingState
   , Put
   , runPut
@@ -80,8 +70,8 @@ import qualified Data.ByteString.Short as HB hiding (ShortByteString)
 import Data.Conduit
 import Data.Int
 import Data.Word
-import Data.Binary.Conduit.ByteOffset
-import Data.Binary.Conduit.Put.PutS
+import Data.Conduit.Parsers.Binary.ByteOffset
+import Data.Conduit.Parsers.PutS
 
 class (EncodingState s, EncodingToken s ~ Word64, EncodingBytesWrote s) => DefaultEncodingState s where
 

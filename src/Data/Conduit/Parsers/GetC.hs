@@ -17,7 +17,7 @@
 -- | This module provides the 'GetC' monad transformer,
 -- and all functions, which could not be defined using 'GetC' public interface only.
 
-module Data.Binary.Conduit.Get.GetC
+module Data.Conduit.Parsers.GetC
   ( DecodingState (..)
   , DecodingBytesRead (..)
   , Decoding

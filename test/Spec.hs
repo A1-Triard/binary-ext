@@ -17,14 +17,14 @@
 import Control.Monad hiding (fail)
 import Test.HUnit.Base hiding (Label)
 import Test.HUnit.Text
-import qualified Data.Binary.Conduit.Get.Spec
-import qualified Data.Binary.Conduit.Put.Spec
+import qualified Data.Conduit.Parsers.Binary.Get.Spec
+import qualified Data.Conduit.Parsers.Binary.Put.Spec
 
 main :: IO ()
 main = void $ runTestTT tests
 
 tests :: Test
 tests = TestList
-  [ Data.Binary.Conduit.Get.Spec.tests
-  , Data.Binary.Conduit.Put.Spec.tests
+  [ Data.Conduit.Parsers.Binary.Get.Spec.tests
+  , Data.Conduit.Parsers.Binary.Put.Spec.tests
   ]

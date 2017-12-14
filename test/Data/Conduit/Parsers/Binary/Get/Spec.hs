@@ -14,7 +14,7 @@
 -- limitations under the License.
 --
 
-module Data.Binary.Conduit.Get.Spec
+module Data.Conduit.Parsers.Binary.Get.Spec
   ( tests
   ) where
 
@@ -36,8 +36,10 @@ import Data.Semigroup hiding (Option)
 import Data.Void
 import Data.Word
 import Test.HUnit.Base hiding (Label)
-import Data.Binary.Conduit.Get hiding (runGet)
-import qualified Data.Binary.Conduit.Get as G (runGet)
+import qualified Data.Conduit.Parsers.Binary.ByteOffset as G
+import Data.Conduit.Parsers.Binary.Get hiding (runGet)
+import qualified Data.Conduit.Parsers.Binary.Get as G (runGet)
+import qualified Data.Conduit.Parsers.GetC as G
 
 tests :: Test
 tests = TestList
@@ -59,8 +61,8 @@ tests = TestList
   , TestCase testErrorMap
   ]
 
-runGet :: (DecodingState ByteOffset, Monad m) => GetM ByteOffset i o e m a -> ConduitM i o m (Either e a, Word64)
-runGet !g = (\(!r, !s) -> (r, decodingBytesRead s)) <$> runGetC (startDecoding $ ByteOffset 0) g
+runGet :: Monad m => GetM G.ByteOffset i o e m a -> ConduitM i o m (Either e a, Word64)
+runGet !g = (\(!r, !s) -> (r, G.decodingBytesRead s)) <$> G.runGetC (G.startDecoding $ G.ByteOffset 0) g
 
 testInput1 :: [S.ByteString]
 testInput1 =
@@ -113,7 +115,7 @@ ensureEof e = do
   eof <- N.nullE
   if eof then return () else throwError e
 
-get1 :: (DecodingState s, DecodingToken s ~ S.ByteString, DecodingBytesRead s, Monad m) => GetM s S.ByteString Word16 Bool m ()
+get1 :: (DefaultDecodingState s, Monad m) => GetM s S.ByteString Word16 Bool m ()
 get1 = do
   yield =<< mapError (const False) getWord16le
   yield =<< mapError (const False) getWord16le
@@ -223,7 +225,7 @@ recordBody = whileM (not <$> N.nullE) $ mapError (const ()) $ isolate 8 getWord6
 record :: Word64 -> Get (Either (Maybe Word64) ()) [Word64]
 record z = isolate z recordBody
 
-records :: (DecodingState s, DecodingToken s ~ S.ByteString, DecodingBytesRead s, Monad m) => GetM s S.ByteString [Word64] (Either (Maybe Word64) ()) m ()
+records :: (DefaultDecodingState s, Monad m) => GetM s S.ByteString [Word64] (Either (Maybe Word64) ()) m ()
 records = do
   yield =<< record 24
   yield =<< record 16
@@ -276,19 +278,19 @@ testLeftoversInIsolate = do
   assertEqual "" 4 c
 
 skipUntilZero :: Get e Bool
-skipUntilZero = getC $ flip runStateC $ untilJust $ do
+skipUntilZero = G.getC $ flip runStateC $ untilJust $ do
   !m_inp <- await
   case m_inp of
     Nothing -> return $ Just $ Right False
     Just !inp -> do
       case SB.elemIndex 0 inp of
         Nothing -> do
-          lift $ modify' $ decoded inp
+          lift $ modify' $ G.decoded inp
           return Nothing
         Just !i -> do
           let (!h, !t) = SB.splitAt i inp
           leftover t
-          lift $ modify' $ decoded h
+          lift $ modify' $ G.decoded h
           return $ Just $ Right True
 
 testZeroInput1 :: [S.ByteString]
