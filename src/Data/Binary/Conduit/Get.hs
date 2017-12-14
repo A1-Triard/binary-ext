@@ -164,23 +164,21 @@ skip !n = getC $
 -- offset from 'bytesRead' will NOT be relative to the start of @isolate@.
 isolate :: (DecodingState s, DecodingBytesRead s, Monad m)
   => Word64 -- ^ The number of bytes that must be consumed.
-  -> e -- ^ The error if fewer than @n@ bytes are available.
-  -> (Word64 -> e) -- ^ The error if fewer than @n@ bytes were consumed.
   -> GetM s S.ByteString o e m a -- ^ The decoder to isolate.
-  -> GetM s S.ByteString o e m a
-isolate !n unexpected_eof f !g = do
+  -> GetM s S.ByteString o (Either (Maybe Word64) e) m a
+isolate !n !g = do
   !o1 <- bytesRead
-  !r <- getC $ flip runStateC $ runExceptC $ fuseLeftovers id (go 0) (exceptC $ stateC $ flip runGetC $ g)
+  !r <- getC $ flip runStateC $ runExceptC $ fuseLeftovers id (go 0) (exceptC $ stateC $ flip runGetC $ mapError Right g)
   !o2 <- bytesRead
   if o2 - o1 < n
-    then throwError $ f $ o2 - o1
+    then throwError $ Left $ Just $ o2 - o1
     else return r
   where
   go consumed
     | consumed > n = error "Data.Binary.Conduit.Get.isolate"
     | consumed == n = return ()
     | otherwise = do
-      !i <- maybe (throwError unexpected_eof) return =<< await
+      !i <- maybe (throwError $ Left Nothing) return =<< await
       let !gap = n - consumed
       if gap >= fromIntegral (SB.length i)
         then do

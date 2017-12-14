@@ -167,7 +167,7 @@ testIsolateOverAlternativeIsolateNotEnough :: Assertion
 testIsolateOverAlternativeIsolateNotEnough = do
   let
     (!e, !c) = runIdentity $ N.yieldMany testInput5
-      $$ runGet (isolate 2 (Left Nothing) (Left . Just) $ mapError Right $ Right <$> getInt32le <|> Left <$> getWord8)
+      $$ runGet (isolate 2 $ Right <$> getInt32le <|> Left <$> getWord8)
   assertEqual "" (Left $ Left $ Just 1) e
   assertEqual "" 1 c
 
@@ -175,7 +175,7 @@ testIsolateOverAlternativeIsolateExactly :: Assertion
 testIsolateOverAlternativeIsolateExactly = do
   let
     (!e, !c) = runIdentity $ N.yieldMany testInput5
-      $$ runGet (isolate 1 (Left Nothing) (Left . Just) $ mapError Right $ Right <$> getInt32le <|> Left <$> getWord8)
+      $$ runGet (isolate 1 $ Right <$> getInt32le <|> Left <$> getWord8)
   assertEqual "" (Right $ Left $ fromIntegral $ ord 'A') e
   assertEqual "" 1 c
 
@@ -183,7 +183,7 @@ testIsolateOverAlternativeIsolateEnough :: Assertion
 testIsolateOverAlternativeIsolateEnough = do
   let
     (!e, !c) = runIdentity $ N.yieldMany testInput5
-      $$ runGet (isolate 4 (Left Nothing) (Left . Just) $ mapError Right $ Right <$> getInt32le <|> Left <$> getWord8)
+      $$ runGet (isolate 4 $ Right <$> getInt32le <|> Left <$> getWord8)
   assertEqual "" (Right $ Right 1145258561) e
   assertEqual "" 4 c
 
@@ -191,7 +191,7 @@ testIsolateOverAlternativeIsolateEnoughButEof :: Assertion
 testIsolateOverAlternativeIsolateEnoughButEof = do
   let
     (!e, !c) = runIdentity $ N.yieldMany testInput4
-      $$ runGet (isolate 4 (Left Nothing) (Left . Just) $ mapError Right $ Right <$> getInt32le <|> Left <$> getWord8)
+      $$ runGet (isolate 4 $ Right <$> getInt32le <|> Left <$> getWord8)
   assertEqual "" (Left $ Left Nothing) e
   assertEqual "" 0 c
 
@@ -199,7 +199,7 @@ testIsolateIsolateEnoughButEof :: Assertion
 testIsolateIsolateEnoughButEof = do
   let
     (!e, !c) = runIdentity $ N.yieldMany testInput4
-      $$ runGet (isolate 4 (Left Nothing) (Left . Just) $ mapError Right getWord8)
+      $$ runGet (isolate 4 getWord8)
   assertEqual "" (Left $ Left $ Just 1) e
   assertEqual "" 1 c
 
@@ -207,7 +207,7 @@ testIsolateIsolateEnoughButEofEarly :: Assertion
 testIsolateIsolateEnoughButEofEarly = do
   let
     (!e, !c) = runIdentity $ N.yieldMany testInput7
-      $$ runGet (isolate 4 (Left Nothing) (Left . Just) $ mapError Right $ getWord8 >> getWord8 >> getWord8 >> getWord8)
+      $$ runGet (isolate 4 $ getWord8 >> getWord8 >> getWord8 >> getWord8)
   assertEqual "" (Left $ Left Nothing) e
   assertEqual "" 0 c
 
@@ -218,10 +218,10 @@ testAlternativeRollback = do
   assertEqual "" 8 c
 
 recordBody :: Get () [Word64]
-recordBody = whileM (not <$> N.nullE) $ isolate 8 () (const ()) getWord64le
+recordBody = whileM (not <$> N.nullE) $ mapError (const ()) $ isolate 8 getWord64le
 
 record :: Word64 -> Get (Either (Maybe Word64) ()) [Word64]
-record z = isolate z (Left Nothing) (Left . Just) $ mapError Right recordBody
+record z = isolate z recordBody
 
 records :: (DecodingState s, DecodingToken s ~ S.ByteString, DecodingBytesRead s, Monad m) => GetM s S.ByteString [Word64] (Either (Maybe Word64) ()) m ()
 records = do
@@ -264,7 +264,7 @@ takeE !n =
 
 testLeftoversInIsolate :: Assertion
 testLeftoversInIsolate = do
-  let !i = isolate 4 (Left Nothing) (Left . Just) $ mapError Right $ (leftover =<< takeE 4) >> skip 2
+  let !i = isolate 4 $ (leftover =<< takeE 4) >> skip 2
   let
     !g = do
       catchError i $ const $ return ()
