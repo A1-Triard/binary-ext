@@ -34,15 +34,15 @@ module Data.Binary.Conduit.Get
   , GetM
   , runGetC
   , getC
-  , mapError
+  , MonadMapError (..)
+  , (?=>>)
+  , (?>>)
   , ByteOffset (..)
   , DefaultDecodingState
   , Get
   , runGet
   , bytesRead
   , castGet
-  , onError
-  , withError
   , skip
   , isolate
   , getByteString
@@ -92,8 +92,8 @@ import Data.Conduit.Lift
 import Data.Int
 import Data.Maybe
 import Data.Semigroup hiding (Option)
-import Data.Void
 import Data.Word
+import Control.Monad.Error.Map
 import Data.Binary.Conduit.ByteOffset
 import Data.Binary.Conduit.Get.GetC
 
@@ -130,19 +130,6 @@ castGet !g = getC $
     next <- await
     go (continue next) (fromMaybe SB.empty next) (decoded chunk decoding)
 {-# INLINE castGet #-}
-
--- | 'onError' is 'mapError' with its arguments flipped.
-onError :: Monad m => GetM s i o e m a -> (e -> GetM s i o Void m e') -> GetM  s i o e' m a
-onError !g h =
-  mapError (either (error "Data.Binary.Conduit.Get.onError") id)
-  $ catchError (mapError Left g)
-  $ \e -> (throwError . Right) =<< mapError absurd (h $ either id (error "Data.Binary.Conduit.Get.onError") e)
-{-# INLINE onError #-}
-
--- | 'ifError' is 'withError' with its arguments flipped.
-withError :: Monad m => GetM s i o () m a -> GetM s i o Void m e -> GetM s i o e m a
-withError !g h = onError g (const h)
-{-# INLINE withError #-}
 
 voidError :: Monad m => GetM s i o e m a -> GetM s i o () m a
 voidError = mapError (const ())

@@ -27,7 +27,6 @@ module Data.Binary.Conduit.Get.GetC
   , GetM
   , runGetC
   , getC
-  , mapError
   ) where
 
 import Control.Applicative
@@ -35,6 +34,7 @@ import Control.Error.Util
 import Control.Monad hiding (fail)
 import Control.Monad.Base
 import Control.Monad.Error.Class
+import Control.Monad.Error.Map
 import Control.Monad.Fail
 import Control.Monad.Fix
 import Control.Monad.IO.Class
@@ -110,6 +110,9 @@ instance MonadBaseControl b m => MonadBaseControl b (GetC s i e m) where
   restoreM = defaultRestoreM
   {-# INLINE restoreM #-}
 
+instance Monad m => MonadMapError e (GetC s i e m) e' (GetC s i e' m) where
+  mapError f = C . mapError f . runC
+
 -- | A 'ConduitM' with internal transformers supposed to a binary deserialization.
 type GetM s i o e m = ConduitM i o (GetC s i e m)
 
@@ -155,9 +158,3 @@ runGetC !decoding = runStateC decoding . runExceptC . transPipe runC
 getC :: Monad m => (Decoding s i -> ConduitM i o m (Either e a, Decoding s i)) -> GetM s i o e m a
 getC = transPipe C . exceptC . stateC
 {-# INLINE getC #-}
-
--- | Convert decoder error. If the decoder fails, the given function will be applied
--- to the error message.
-mapError :: Monad m => (e -> e') -> GetM s i o e m a -> GetM s i o e' m a
-mapError f !g = transPipe C $ exceptC $ either (Left . f) Right <$> runExceptC (transPipe runC g)
-{-# INLINE mapError #-}

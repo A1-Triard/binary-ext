@@ -17,6 +17,7 @@ library
   hs-source-dirs: src
   exposed-modules: Data.Binary.Conduit.Get
                  , Data.Binary.Conduit.Put
+                 , Control.Monad.Error.Map
   other-modules: Data.Binary.Conduit.Get.GetC
                , Data.Binary.Conduit.Put.PutS
                , Data.Binary.Conduit.ByteOffset
@@ -37,6 +38,7 @@ library
   default-extensions: BangPatterns
                     , FlexibleContexts
                     , FlexibleInstances
+                    , FunctionalDependencies
                     , GeneralizedNewtypeDeriving
                     , MultiParamTypeClasses
                     , StandaloneDeriving
@@ -71,6 +73,7 @@ test-suite binary-ext-test
   default-extensions: BangPatterns
                     , FlexibleContexts
                     , FlexibleInstances
+                    , FunctionalDependencies
                     , GeneralizedNewtypeDeriving
                     , MultiParamTypeClasses
                     , OverloadedStrings

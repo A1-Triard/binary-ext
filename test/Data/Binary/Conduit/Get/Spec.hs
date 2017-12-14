@@ -37,6 +37,7 @@ import Data.Void
 import Data.Word
 import Test.HUnit.Base hiding (Label)
 import Data.Binary.Conduit.Get hiding (runGet)
+import qualified Data.Binary.Conduit.Get as G (runGet)
 
 tests :: Test
 tests = TestList
@@ -55,6 +56,7 @@ tests = TestList
   , TestCase testRecords
   , TestCase testLeftoversInIsolate
   , TestCase testSkipUntilZero
+  , TestCase testErrorMap
   ]
 
 runGet :: (DecodingState ByteOffset, Monad m) => GetM ByteOffset i o e m a -> ConduitM i o m (Either e a, Word64)
@@ -301,3 +303,11 @@ testSkipUntilZero = do
   let (!r, !c) = runIdentity $ N.yieldMany testZeroInput1 $$ runGet (skipUntilZero >> getRemainingLazyByteString)
   assertEqual "" ((Right "\0zx8") :: Either Void ByteString) r
   assertEqual "" 10 c
+
+w32 :: Get String Word32
+w32 = getWord32le ?>> ("Unexpected EOF at " ++) <$> show <$> bytesRead
+
+testErrorMap :: Assertion
+testErrorMap = do
+  let !r = runIdentity $ N.yieldMany [] $$ G.runGet w32
+  assertEqual "" (Left "Unexpected EOF at 0") r
