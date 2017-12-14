@@ -25,31 +25,34 @@
 -- in complicated cases, local 'Get' is 'MonadError'.
 
 module Data.Conduit.Parsers.Text.TextOffset
-  ( TextOffset
+  ( TextOffset (..)
   ) where
 
-import qualified Data.ByteString as S (ByteString)
-import qualified Data.ByteString as SB hiding (ByteString, head, last, init, tail)
+import qualified Data.Text as S (Text)
+import qualified Data.Text as ST hiding (Text, head, last, tail, init)
 import Data.Word
 import Data.Conduit.Parsers.GetC
-import Data.Conduit.Parsers.PutS
+import Data.Conduit.Parsers.Text
 
-newtype TextOffset = TextOffset Word64 deriving Show
+data TextOffset = TextOffset Word64 Word64 Word64 deriving Show
 
 instance DecodingState TextOffset where
-  type DecodingToken TextOffset = S.ByteString
-  decoded !i (TextOffset !s) = TextOffset (s + fromIntegral (SB.length i))
+  type DecodingToken TextOffset = S.Text
+  decoded !i (TextOffset !o !l !c) =
+    let newlines = reverse $ drop 1 $ ST.lines i in
+    TextOffset (o + fromIntegral (ST.length i)) (l + fromIntegral (length newlines)) $ case newlines of
+      [] -> c + fromIntegral (ST.length i)
+      (x : _) -> fromIntegral (ST.length x)
   {-# INLINE decoded #-}
 
-instance DecodingBytesRead TextOffset where
-  decodingBytesRead (TextOffset !s) = s
-  {-# INLINE decodingBytesRead #-}
+instance DecodingCharsRead TextOffset where
+  decodingCharsRead (TextOffset !o _ _) = o
+  {-# INLINE decodingCharsRead #-}
 
-instance EncodingState TextOffset where
-  type EncodingToken TextOffset = Word64
-  encoded !w (TextOffset !s) = TextOffset (s + w)
-  {-# INLINE encoded #-}
+instance DecodingLinesRead TextOffset where
+  decodingLinesRead (TextOffset _ !l _) = l
+  {-# INLINE decodingLinesRead #-}
 
-instance EncodingBytesWrote TextOffset where
-  encodingBytesWrote (TextOffset !s) = s
-  {-# INLINE encodingBytesWrote #-}
+instance DecodingColumnsRead TextOffset where
+  decodingColumnsRead (TextOffset _ _ !c) = c
+  {-# INLINE decodingColumnsRead #-}

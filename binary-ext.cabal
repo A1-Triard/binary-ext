@@ -18,9 +18,11 @@ library
   exposed-modules: Control.Monad.Error.Map
                  , Data.Conduit.Parsers.GetC
                  , Data.Conduit.Parsers.PutS
+                 , Data.Conduit.Parsers.Binary
                  , Data.Conduit.Parsers.Binary.ByteOffset
                  , Data.Conduit.Parsers.Binary.Get
                  , Data.Conduit.Parsers.Binary.Put
+                 , Data.Conduit.Parsers.Text
                  , Data.Conduit.Parsers.Text.TextOffset
   build-depends: base >= 4.7 && < 5
                , binary
@@ -34,6 +36,7 @@ library
                , monad-loops
                , mono-traversable
                , mtl
+               , text
                , transformers
                , transformers-base
   default-extensions: BangPatterns
@@ -69,6 +72,7 @@ test-suite binary-ext-test
                , monad-loops
                , mono-traversable
                , mtl
+               , text
                , transformers
                , transformers-base
   default-extensions: BangPatterns

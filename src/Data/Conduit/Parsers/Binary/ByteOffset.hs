@@ -31,6 +31,7 @@ module Data.Conduit.Parsers.Binary.ByteOffset
 import qualified Data.ByteString as S (ByteString)
 import qualified Data.ByteString as SB hiding (ByteString, head, last, init, tail)
 import Data.Word
+import Data.Conduit.Parsers.Binary
 import Data.Conduit.Parsers.GetC
 import Data.Conduit.Parsers.PutS
 

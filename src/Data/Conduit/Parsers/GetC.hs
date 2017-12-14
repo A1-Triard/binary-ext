@@ -19,7 +19,6 @@
 
 module Data.Conduit.Parsers.GetC
   ( DecodingState (..)
-  , DecodingBytesRead (..)
   , Decoding
   , startDecoding
   , decodingRead
@@ -45,14 +44,10 @@ import Control.Monad.Trans.State.Strict
 import Data.Conduit
 import Data.Conduit.Lift
 import Data.Maybe hiding (fromJust)
-import Data.Word
 
 class DecodingState s where
   type DecodingToken s :: *
   decoded :: DecodingToken s -> s -> s
-
-class DecodingBytesRead s where
-  decodingBytesRead :: s -> Word64
 
 -- | 'GetC' monad state.
 data Decoding s i = Decoding
@@ -72,9 +67,6 @@ instance (DecodingState s, DecodingToken s ~ i) => DecodingState (Decoding s i) 
     , tracking = (inp :) <$> tracking s
     }
   {-# INLINE decoded #-}
-
-instance (DecodingState s, DecodingBytesRead s) => DecodingBytesRead (Decoding s i) where
-  decodingBytesRead = decodingBytesRead . decodingRead
 
 -- | Internal transformers for 'Get' with error type @e@, host monad @m@ and decoder result @a@.
 newtype GetC s i e m a = C { runC :: ExceptT e (StateT (Decoding s i) m) a }

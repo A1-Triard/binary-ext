@@ -85,6 +85,7 @@ import Data.Maybe
 import Data.Semigroup hiding (Option)
 import Data.Word
 import Control.Monad.Error.Map
+import Data.Conduit.Parsers.Binary
 import Data.Conduit.Parsers.Binary.ByteOffset
 import Data.Conduit.Parsers.GetC
 

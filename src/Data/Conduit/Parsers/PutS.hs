@@ -19,7 +19,7 @@
 
 module Data.Conduit.Parsers.PutS
   ( EncodingState (..)
-  , EncodingBytesWrote (..)
+  , VoidEncodingState (..)
   , Encoding
   , encodingWrote
   , runEncoding
@@ -33,14 +33,17 @@ module Data.Conduit.Parsers.PutS
 import Control.Monad.Fix
 import Control.Monad.Trans.State.Strict
 import Data.Conduit
-import Data.Word
 
 class EncodingState s where
   type EncodingToken s :: *
   encoded :: EncodingToken s -> s -> s
 
-class EncodingBytesWrote s where
-  encodingBytesWrote :: s -> Word64
+data VoidEncodingState = VoidEncodingState
+
+instance EncodingState VoidEncodingState where
+  type EncodingToken VoidEncodingState = ()
+  encoded () = id
+  {-# INLINE encoded #-}
 
 -- | 'PutS' functor state.
 data Encoding s m = Encoding
@@ -55,10 +58,6 @@ instance (EncodingState s, Monad m) => EncodingState (Encoding s m) where
     , runEncoding = runEncoding s >> producer
     }
   {-# INLINE encoded #-}
-
-instance (EncodingBytesWrote s) => EncodingBytesWrote (Encoding s m) where
-  encodingBytesWrote = encodingBytesWrote . encodingWrote
-  {-# INLINE encodingBytesWrote #-}
 
 -- | Construct 'PutS' initial state.
 startEncoding :: Applicative m => s -> Encoding s m

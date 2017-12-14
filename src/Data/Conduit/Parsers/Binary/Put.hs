@@ -70,6 +70,7 @@ import qualified Data.ByteString.Short as HB hiding (ShortByteString)
 import Data.Conduit
 import Data.Int
 import Data.Word
+import Data.Conduit.Parsers.Binary
 import Data.Conduit.Parsers.Binary.ByteOffset
 import Data.Conduit.Parsers.PutS
 
