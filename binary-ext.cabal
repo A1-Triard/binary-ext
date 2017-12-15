@@ -24,6 +24,7 @@ library
                  , Data.Conduit.Parsers.Binary.Get
                  , Data.Conduit.Parsers.Binary.Put
                  , Data.Conduit.Parsers.Text
+                 , Data.Conduit.Parsers.Text.Gen
                  , Data.Conduit.Parsers.Text.Parser
                  , Data.Conduit.Parsers.Text.TextOffset
   build-depends: base >= 4.7 && < 5

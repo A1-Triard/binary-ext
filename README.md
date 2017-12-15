@@ -6,8 +6,8 @@ binary-ext package
 [![Stackage nightly version](https://www.stackage.org/package/binary-ext/badge/nightly?label=nightly)](https://www.stackage.org/package/binary-ext)
 [![Build status](https://secure.travis-ci.org/A1-Triard/binary-ext.png?branch=master)](http://travis-ci.org/A1-Triard/binary-ext)
 
-An alternate with typed errors for the `Data.Binary.Get` monad from the `binary` package
-and adapters from the `binary-conduit` package.
+An alternate with typed errors and other advantages for the `Data.Binary.Get.Get` monad from the `binary` package
+and `Data.Attoparsec.Text.Parser` monad from the `attoparsec` package.
 
 Building binary-ext
 -------------------
@@ -22,14 +22,24 @@ Run the test suite.
 
     $ stack test
 
-Using binary-ext
-----------------
+Using binary-ext for binary serialization/deserialization
+---------------------------------------------------------
+Import modules:
 
-First:
-
-    import Data.Binary.Conduit.Put
-    import Data.Binary.Conduit.Get
+    import Data.Conduit.Parsers.Binary.Get
+    import Data.Conduit.Parsers.Binary.Put
 
 and then use the `Get` and `Put` monads to serialize/deserialize.
+
+More information in the haddock documentation.
+
+Using binary-ext for text serialization/deserialization
+---------------------------------------------------------
+Import modules:
+
+    import Data.Conduit.Parsers.Text.Parser
+    import Data.Conduit.Parsers.Text.Gen
+
+and then use the `Parser` and `TextGen` monads to serialize/deserialize.
 
 More information in the haddock documentation.
