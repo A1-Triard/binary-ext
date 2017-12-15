@@ -36,43 +36,43 @@ module Data.Conduit.Parsers.Text.Parser
   , linesRead
   , columnsRead
   , castParser
-  , char
-  , anyChar
-  , notChar
+  , pCharIs
+  , pChar
+  , pCharIsNot
   , satisfy
   , satisfyWith
   , skip1
   , peekChar
   , peekChar'
-  , digit
-  , hexDigit
-  , hexByte
-  , letter
-  , space
+  , pDigit
+  , pHexDigit
+  , pHexByte
+  , pLetter
+  , pSpace
   , inClass
   , notInClass
-  , string
-  , asciiCI
+  , pStringIs
+  , pAsciiIgnoringCaseIs
   , skipSpace
   , skipWhile
   , scan
   , runScanner
-  , take
-  , takeWhile
-  , takeWhile1
-  , takeTill
-  , takeText
-  , takeLazyText
-  , endOfLine
+  , pString
+  , pStringWhile
+  , pStringWhile1
+  , pStringTill
+  , pRemainingString
+  , pRemainingLazyString
+  , pIsEndOfLine
   , isEndOfLine
   , isHorizontalSpace
-  , decimal
-  , hexadecimal
-  , signedDecimal
-  , signedHexadecimal
-  , double
-  , rational
-  , scientific
+  , pDecimal
+  , pHexadecimal
+  , pSignedDecimal
+  , pSignedHexadecimal
+  , pDouble
+  , pRational
+  , pScientific
   , choice
   , count
   , option
@@ -88,7 +88,6 @@ module Data.Conduit.Parsers.Text.Parser
   , skipMany
   , skipMany1
   , eitherP
-  , atEnd
   , match
   , try
   ) where
@@ -175,17 +174,17 @@ boolError :: Monad m => GetM s i o (NonEmpty String) m a -> GetM s i o Bool m a
 boolError = mapError (isNotEnoughInput . head)
 {-# INLINE boolError #-}
 
-char :: Char -> Parser Bool Char
-char = boolError . castParser . Tp.char
-{-# INLINE char #-}
+pCharIs :: Char -> Parser Bool Char
+pCharIs = boolError . castParser . Tp.char
+{-# INLINE pCharIs #-}
 
-anyChar :: Parser () Char
-anyChar = voidError $ castParser Tp.anyChar
-{-# INLINE anyChar #-}
+pChar :: Parser () Char
+pChar = voidError $ castParser Tp.anyChar
+{-# INLINE pChar #-}
 
-notChar :: Char -> Parser Bool Char
-notChar = boolError . castParser . Tp.notChar
-{-# INLINE notChar #-}
+pCharIsNot :: Char -> Parser Bool Char
+pCharIsNot = boolError . castParser . Tp.notChar
+{-# INLINE pCharIsNot #-}
 
 satisfy :: (Char -> Bool) -> Parser Bool Char
 satisfy = boolError . castParser . Tp.satisfy
@@ -207,42 +206,42 @@ peekChar' :: Parser e Char
 peekChar' = anyError $ castParser Tp.peekChar'
 {-# INLINE peekChar' #-}
 
-digit :: Integral a => Parser Bool a
-digit = boolError $ (\ !x -> fromIntegral $ ord x - ord '0') <$> castParser Tp.digit
-{-# INLINE digit #-}
+pDigit :: Integral a => Parser Bool a
+pDigit = boolError $ (\ !x -> fromIntegral $ ord x - ord '0') <$> castParser Tp.digit
+{-# INLINE pDigit #-}
 
-hexDigit :: Integral a => Parser Bool a
-hexDigit =
+pHexDigit :: Integral a => Parser Bool a
+pHexDigit =
   (fromIntegral . digitValue) <$> satisfy isHexDigit
   where
   digitValue x
     | x >= 'a' = 10 + (ord x - ord 'a')
     | x >= 'A' = 10 + (ord x - ord 'A')
     | otherwise = ord x - ord '0'
-{-# INLINE hexDigit #-}
+{-# INLINE pHexDigit #-}
 
-hexByte :: Parser Bool Word8
-hexByte = do
-  !h <- hexDigit
-  !l <- hexDigit
+pHexByte :: Parser Bool Word8
+pHexByte = do
+  !h <- pHexDigit
+  !l <- pHexDigit
   return $ h `shiftL` 4 .|. l
-{-# INLINE hexByte #-}
+{-# INLINE pHexByte #-}
 
-letter :: Parser Bool Char
-letter = boolError $ castParser Tp.letter
-{-# INLINE letter #-}
+pLetter :: Parser Bool Char
+pLetter = boolError $ castParser Tp.letter
+{-# INLINE pLetter #-}
 
-space :: Parser Bool Char
-space = boolError $ castParser Tp.space
-{-# INLINE space #-}
+pSpace :: Parser Bool Char
+pSpace = boolError $ castParser Tp.space
+{-# INLINE pSpace #-}
 
-string :: S.Text -> Parser Bool S.Text
-string = boolError . castParser . Tp.string
-{-# INLINE string #-}
+pStringIs :: S.Text -> Parser Bool S.Text
+pStringIs = boolError . castParser . Tp.string
+{-# INLINE pStringIs #-}
 
-asciiCI :: S.Text -> Parser Bool S.Text
-asciiCI = boolError . castParser . Tp.asciiCI
-{-# INLINE asciiCI #-}
+pAsciiIgnoringCaseIs :: S.Text -> Parser Bool S.Text
+pAsciiIgnoringCaseIs = boolError . castParser . Tp.asciiCI
+{-# INLINE pAsciiIgnoringCaseIs #-}
 
 skipSpace :: Parser Bool ()
 skipSpace = boolError $ castParser Tp.skipSpace
@@ -260,62 +259,58 @@ runScanner :: s -> (s -> Char -> Maybe s) -> Parser e (S.Text, s)
 runScanner s = anyError . castParser . Tp.runScanner s
 {-# INLINE runScanner #-}
 
-take :: Int -> Parser () S.Text
-take = voidError . castParser . Tp.take
-{-# INLINE take #-}
+pString :: Int -> Parser () S.Text
+pString = voidError . castParser . Tp.take
+{-# INLINE pString #-}
 
-takeWhile :: (Char -> Bool) -> Parser e S.Text
-takeWhile = anyError . castParser . Tp.takeWhile
-{-# INLINE takeWhile #-}
+pStringWhile :: (Char -> Bool) -> Parser e S.Text
+pStringWhile = anyError . castParser . Tp.takeWhile
+{-# INLINE pStringWhile #-}
 
-takeWhile1 :: (Char -> Bool) -> Parser () S.Text
-takeWhile1 = voidError . castParser . Tp.takeWhile
-{-# INLINE takeWhile1 #-}
+pStringWhile1 :: (Char -> Bool) -> Parser () S.Text
+pStringWhile1 = voidError . castParser . Tp.takeWhile
+{-# INLINE pStringWhile1 #-}
 
-takeTill :: (Char -> Bool) -> Parser e S.Text
-takeTill = anyError . castParser . Tp.takeTill
-{-# INLINE takeTill #-}
+pStringTill :: (Char -> Bool) -> Parser e S.Text
+pStringTill = anyError . castParser . Tp.takeTill
+{-# INLINE pStringTill #-}
 
-takeText :: Parser e S.Text
-takeText = anyError $ castParser Tp.takeText
-{-# INLINE takeText #-}
+pRemainingString :: Parser e S.Text
+pRemainingString = anyError $ castParser Tp.takeText
+{-# INLINE pRemainingString #-}
 
-takeLazyText :: Parser e Text
-takeLazyText = anyError $ castParser Tp.takeLazyText
-{-# INLINE takeLazyText #-}
+pRemainingLazyString :: Parser e Text
+pRemainingLazyString = anyError $ castParser Tp.takeLazyText
+{-# INLINE pRemainingLazyString #-}
 
-endOfLine :: Parser Bool ()
-endOfLine = boolError $ castParser Tp.endOfLine
-{-# INLINE endOfLine #-}
+pIsEndOfLine :: Parser Bool ()
+pIsEndOfLine = boolError $ castParser Tp.endOfLine
+{-# INLINE pIsEndOfLine #-}
 
-decimal :: Integral a => Parser Bool a
-decimal = boolError $ castParser Tp.decimal
-{-# INLINE decimal #-}
+pDecimal :: Integral a => Parser Bool a
+pDecimal = boolError $ castParser Tp.decimal
+{-# INLINE pDecimal #-}
 
-hexadecimal :: (Integral a, Bits a) => Parser Bool a
-hexadecimal = boolError $ castParser Tp.hexadecimal
-{-# INLINE hexadecimal #-}
+pHexadecimal :: (Integral a, Bits a) => Parser Bool a
+pHexadecimal = boolError $ castParser Tp.hexadecimal
+{-# INLINE pHexadecimal #-}
 
-signedDecimal :: Integral a => Parser Bool a
-signedDecimal = boolError $ castParser $ Tp.signed Tp.decimal
-{-# INLINE signedDecimal #-}
+pSignedDecimal :: Integral a => Parser Bool a
+pSignedDecimal = boolError $ castParser $ Tp.signed Tp.decimal
+{-# INLINE pSignedDecimal #-}
 
-signedHexadecimal :: (Integral a, Bits a) => Parser Bool a
-signedHexadecimal = boolError $ castParser $ Tp.signed Tp.hexadecimal
-{-# INLINE signedHexadecimal #-}
+pSignedHexadecimal :: (Integral a, Bits a) => Parser Bool a
+pSignedHexadecimal = boolError $ castParser $ Tp.signed Tp.hexadecimal
+{-# INLINE pSignedHexadecimal #-}
 
-double :: Parser Bool Double
-double = boolError $ castParser Tp.double
-{-# INLINE double #-}
+pDouble :: Parser Bool Double
+pDouble = boolError $ castParser Tp.double
+{-# INLINE pDouble #-}
 
-rational :: Fractional a => Parser Bool a
-rational = boolError $ castParser Tp.rational
-{-# INLINE rational #-}
+pRational :: Fractional a => Parser Bool a
+pRational = boolError $ castParser Tp.rational
+{-# INLINE pRational #-}
 
-scientific :: Parser Bool Scientific
-scientific = boolError $ castParser Tp.scientific
-{-# INLINE scientific #-}
-
-atEnd :: Parser e Bool
-atEnd = N.nullE
-{-# INLINE atEnd #-}
+pScientific :: Parser Bool Scientific
+pScientific = boolError $ castParser Tp.scientific
+{-# INLINE pScientific #-}

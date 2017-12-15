@@ -21,8 +21,8 @@ module Data.Conduit.Parsers.Text.Gen
   ( PutM
   , TextGen
   , runTextGen
-  , genText
-  , genLazyText
+  , genString
+  , genLazyString
   , genShow
   , genDigit
   , genHexDigit
@@ -52,25 +52,25 @@ runTextGen :: PutM VoidEncodingState i o m () -> ConduitM i o m ()
 runTextGen !p = runEncoding $ snd $ runPutS p $ startEncoding VoidEncodingState
 {-# INLINE runTextGen #-}
 
-genText :: S.Text -> TextGen
-genText !x = putS $ \ !t -> ((), encoded (yield x, ()) t)
-{-# INLINE genText #-}
+genString :: S.Text -> TextGen
+genString !x = putS $ \ !t -> ((), encoded (yield x, ()) t)
+{-# INLINE genString #-}
 
-genLazyText :: Text -> TextGen
-genLazyText !x = putS $ \ !t -> ((), encoded (mapM_ yield $ T.toChunks x, ()) t)
-{-# INLINE genLazyText #-}
+genLazyString :: Text -> TextGen
+genLazyString !x = putS $ \ !t -> ((), encoded (mapM_ yield $ T.toChunks x, ()) t)
+{-# INLINE genLazyString #-}
 
 genShow :: Show a => a -> TextGen
-genShow = genLazyText . T.pack . show
+genShow = genLazyString . T.pack . show
 {-# INLINE genShow #-}
 
 genDigit :: Integral a => a -> TextGen
-genDigit = genText . ST.singleton . chr . (ord '0' +) . fromIntegral
+genDigit = genString . ST.singleton . chr . (ord '0' +) . fromIntegral
 {-# INLINE genDigit #-}
 
 genHexDigit :: Integral a => Bool -> a -> TextGen
 genHexDigit !uppercase =
-  genText . ST.singleton . chr . toCharCode . fromIntegral
+  genString . ST.singleton . chr . toCharCode . fromIntegral
   where
   toCharCode !x
     | x < 10 = ord '0' + x
