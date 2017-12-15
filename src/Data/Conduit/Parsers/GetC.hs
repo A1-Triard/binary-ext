@@ -21,15 +21,17 @@ module Data.Conduit.Parsers.GetC
   ( DecodingState (..)
   , Decoding
   , startDecoding
+  , continueDecoding
   , decodingRead
   , GetC
   , GetM
   , runGetC
   , getC
+  , track
+  , try
   ) where
 
 import Control.Applicative
-import Control.Error.Util
 import Control.Monad hiding (fail)
 import Control.Monad.Base
 import Control.Monad.Error.Class
@@ -59,6 +61,10 @@ data Decoding s i = Decoding
 startDecoding :: s -> Decoding s i
 startDecoding !bytes_read_before = Decoding { decodingRead = bytes_read_before, tracking = Nothing }
 {-# INLINE startDecoding #-}
+
+continueDecoding :: s -> [i] -> Decoding s i -> Decoding s i
+continueDecoding new delta old = Decoding { decodingRead = new, tracking = (delta ++) <$> tracking old }
+{-# INLINE continueDecoding #-}
 
 instance (DecodingState s, DecodingToken s ~ i) => DecodingState (Decoding s i) where
   type DecodingToken (Decoding s i) = DecodingToken s
@@ -111,7 +117,7 @@ type GetM s i o e m = ConduitM i o (GetC s i e m)
 instance (Monoid e, Monad m) => Alternative (GetM s i o e m) where
   empty = throwError mempty
   {-# INLINE empty #-}
-  a <|> b = catchError (transaction a) $ \ !ea -> catchError (transaction b) $ \ !eb -> throwError (ea `mappend` eb)
+  a <|> b = catchError (try a) $ \ !ea -> catchError (try b) $ \ !eb -> throwError (ea `mappend` eb)
   {-# INLINE (<|>) #-}
 
 instance (Monoid e, Monad m) => MonadPlus (GetM s i o e m) where
@@ -120,14 +126,20 @@ instance (Monoid e, Monad m) => MonadPlus (GetM s i o e m) where
   mplus a b = a <|> b
   {-# INLINE mplus #-}
 
-transaction :: Monad m => GetM s i o e m a -> GetM s i o e m a
-transaction !g = getC $ \ !c -> do
+try :: Monad m => GetM s i o e m a -> GetM s i o e m a
+try !g = getC $ \ !c -> do
+  (!t, !d) <- runGetC (startDecoding $ decodingRead c) $ track g
+  case t of
+    Right (!f, !r) -> return (Right r, continueDecoding (decodingRead d) f c)
+    Left (!f, !e) -> forM_ f leftover >> return (Left e, c)
+{-# INLINE try #-}
+
+track :: Monad m => GetM s i o e m a -> GetM s i o ([i], e) m ([i], a)
+track !g = getC $ \ !c -> do
   (!r, !f) <- runGetC (Decoding { decodingRead = decodingRead c, tracking = Just [] }) g
-  let !tracking_f = fromMaybe (error "Data.Binary.Conduit.Get.GetC.transaction") $ tracking f
-  if isRight r
-    then return (r, Decoding { decodingRead = decodingRead f, tracking = (tracking_f ++) <$> tracking c })
-    else forM_ tracking_f leftover >> return (r, c)
-{-# INLINE transaction #-}
+  let !tracking_f = fromMaybe (error "Data.Conduit.Parsers.GetC.track") $ tracking f
+  return (either (Left . (tracking_f,)) (Right . (tracking_f,)) r, Decoding { decodingRead = decodingRead f, tracking = (tracking_f ++) <$> tracking c })
+{-# INLINE track #-}
 
 -- | Run a 'Get' monad, unwrapping all internal transformers in a reversible way.
 -- @'getC' . 'flip' runGetC = 'id'@

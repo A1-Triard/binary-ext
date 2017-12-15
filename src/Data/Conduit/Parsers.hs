@@ -20,10 +20,12 @@ module Data.Conduit.Parsers
   , endOfInput
   , skip
   , isolate
+  , match
+  , try
   ) where
 
 import Control.Monad.Error.Class
-import Data.Attoparsec.Text hiding (skip, endOfInput)
+import Data.Attoparsec.Text hiding (skip, endOfInput, match, try)
 import qualified Data.ByteString as S (ByteString)
 import qualified Data.ByteString as SB hiding (ByteString, head, last, init, tail)
 import Data.Conduit
@@ -119,39 +121,5 @@ endOfInput = do
   end <- N.nullE
   if end then return () else throwError ()
 
-{-
--- | Isolate a decoder to operate with a fixed number of bytes, and fail if
--- fewer bytes were consumed, or if fewer bytes are left in the input.
--- Unlike 'S.isolate' from binary package,
--- offset from 'bytesRead' will NOT be relative to the start of @isolate@.
-isolate :: (DecodingState s, Chunk (DecodingToken s), DecodingElemsRead s, Monad m)
-  => Word64 -- ^ The number of bytes that must be consumed.
-  -> GetM s (DecodingToken s) o e m a -- ^ The decoder to isolate.
-  -> GetM s (DecodingToken s) o e m (DecodingToken s, a)
-isolate !n !g = do
-  !o1 <- elemsRead
-  !r <- getC $ flip runStateC $ runExceptC $ fuseLeftovers id (go 0) (exceptC $ stateC $ flip runGetC $ g)
-  !o2 <- elemsRead
-  if o2 - o1 < n
-    then throwError $ Left $ Just $ o2 - o1
-    else return r
-  where
-  go consumed
-    | consumed > n = error "Data.Binary.Conduit.Get.isolate"
-    | consumed == n = return ()
-    | otherwise = do
-      !i <- maybe (throwError $ Left Nothing) return =<< await
-      let !gap = n - consumed
-      if gap >= fromIntegral (olength i)
-        then do
-          yield i
-          go $ consumed + fromIntegral (olength i)
-        else do
-          let (!h, !t) = osplitAt (fromIntegral gap) i
-          leftover t
-          yield h
-{-# INLINE isolate #-}
-
--}
---match :: Parser e a -> Parser e (S.Text, a)
---match ::
+match :: (DecodingState s, Monoid (DecodingToken s), Monad m) => GetM s (DecodingToken s) o e m a -> GetM s (DecodingToken s) o e m (DecodingToken s, a)
+match !p = (\(!t, !r) -> (foldl (flip mappend) mempty t, r)) <$> mapError snd (track p)

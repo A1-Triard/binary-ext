@@ -87,6 +87,8 @@ module Data.Conduit.Parsers.Text.Parser
   , skipMany1
   , eitherP
   , atEnd
+  , match
+  , try
   ) where
 
 import Prelude hiding (head, take, takeWhile)

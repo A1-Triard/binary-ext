@@ -51,6 +51,7 @@ library
                     , MultiParamTypeClasses
                     , StandaloneDeriving
                     , RankNTypes
+                    , TupleSections
                     , TypeFamilies
                     , UndecidableInstances
   ghc-options: -fmax-pmcheck-iterations=100000000 -O2 -Wall -Werror -fprint-potential-instances -fsimpl-tick-factor=110
@@ -90,6 +91,7 @@ test-suite binary-ext-test
                     , OverloadedStrings
                     , StandaloneDeriving
                     , RankNTypes
+                    , TupleSections
                     , TypeFamilies
                     , UndecidableInstances
   ghc-options: -threaded -rtsopts -with-rtsopts=-N -fmax-pmcheck-iterations=100000000 -O2 -Wall -Werror -fprint-potential-instances -fsimpl-tick-factor=110
