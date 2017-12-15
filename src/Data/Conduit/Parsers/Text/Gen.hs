@@ -23,6 +23,7 @@ module Data.Conduit.Parsers.Text.Gen
   , runTextGen
   , genText
   , genLazyText
+  , genShow
   ) where
 
 import Data.Conduit
@@ -51,3 +52,7 @@ genText !x = putS $ \ !t -> ((), encoded (yield x, ()) t)
 genLazyText :: Text -> TextGen
 genLazyText !x = putS $ \ !t -> ((), encoded (mapM_ yield $ T.toChunks x, ()) t)
 {-# INLINE genLazyText #-}
+
+genShow :: Show a => a -> TextGen
+genShow = genLazyText . T.pack . show
+{-# INLINE genShow #-}
