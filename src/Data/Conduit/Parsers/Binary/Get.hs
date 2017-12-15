@@ -70,7 +70,6 @@ module Data.Conduit.Parsers.Binary.Get
   , getDoublehost
   ) where
 
-import Control.Monad.Error.Class
 import qualified Data.Binary.Get as S
 import Data.Binary.IEEE754 (wordToFloat, wordToDouble)
 import qualified Data.Binary.IEEE754 as S hiding (floatToWord, wordToFloat, doubleToWord, wordToDouble)
@@ -79,20 +78,19 @@ import qualified Data.ByteString as SB hiding (ByteString, head, last, init, tai
 import Data.ByteString.Lazy (ByteString)
 import qualified Data.ByteString.Lazy as B hiding (ByteString, head, last, init, tail)
 import Data.Conduit
-import Data.Conduit.Lift
 import Data.Int
 import Data.Maybe
 import Data.Semigroup hiding (Option)
 import Data.Word
 import Control.Monad.Error.Map
 import Data.Conduit.Parsers
-import Data.Conduit.Parsers.Binary
+import Data.Conduit.Parsers.Binary ()
 import Data.Conduit.Parsers.Binary.ByteOffset
 import Data.Conduit.Parsers.GetC
 
-class (DecodingState s, DecodingToken s ~ S.ByteString, DecodingBytesRead s) => DefaultDecodingState s where
+class (DecodingState s, DecodingToken s ~ S.ByteString, DecodingElemsRead s) => DefaultDecodingState s where
 
-instance (DecodingState s, DecodingToken s ~ S.ByteString, DecodingBytesRead s) => DefaultDecodingState s where
+instance (DecodingState s, DecodingToken s ~ S.ByteString, DecodingElemsRead s) => DefaultDecodingState s where
 
 -- | The shortening of 'GetM' for the most common use case.
 type Get e a = forall s o m. (DefaultDecodingState s, Monad m) => GetM s S.ByteString o e m a
@@ -104,8 +102,8 @@ runGet !g = fst <$> runGetC (startDecoding $ ByteOffset 0) g
 {-# INLINE runGet #-}
 
 -- | Get the total number of bytes read to this point.
-bytesRead :: (DecodingState s, DecodingBytesRead s, Monad m) => GetM s i o e m Word64
-bytesRead = getC $ \ !x -> return (Right $ decodingBytesRead x, x)
+bytesRead :: (DecodingState s, DecodingElemsRead s, Monad m) => GetM s i o e m Word64
+bytesRead = elemsRead
 {-# INLINE bytesRead #-}
 
 -- | Run the given 'S.Get' monad from binary package
@@ -127,38 +125,6 @@ castGet !g = getC $
 voidError :: Monad m => GetM s i o e m a -> GetM s i o () m a
 voidError = mapError (const ())
 {-# INLINE voidError #-}
-
--- | Isolate a decoder to operate with a fixed number of bytes, and fail if
--- fewer bytes were consumed, or if fewer bytes are left in the input.
--- Unlike 'S.isolate' from binary package,
--- offset from 'bytesRead' will NOT be relative to the start of @isolate@.
-isolate :: (DecodingState s, DecodingBytesRead s, Monad m)
-  => Word64 -- ^ The number of bytes that must be consumed.
-  -> GetM s S.ByteString o e m a -- ^ The decoder to isolate.
-  -> GetM s S.ByteString o (Either (Maybe Word64) e) m a
-isolate !n !g = do
-  !o1 <- bytesRead
-  !r <- getC $ flip runStateC $ runExceptC $ fuseLeftovers id (go 0) (exceptC $ stateC $ flip runGetC $ mapError Right g)
-  !o2 <- bytesRead
-  if o2 - o1 < n
-    then throwError $ Left $ Just $ o2 - o1
-    else return r
-  where
-  go consumed
-    | consumed > n = error "Data.Binary.Conduit.Get.isolate"
-    | consumed == n = return ()
-    | otherwise = do
-      !i <- maybe (throwError $ Left Nothing) return =<< await
-      let !gap = n - consumed
-      if gap >= fromIntegral (SB.length i)
-        then do
-          yield i
-          go $ consumed + fromIntegral (SB.length i)
-        else do
-          let (!h, !t) = SB.splitAt (fromIntegral gap) i
-          leftover t
-          yield h
-{-# INLINE isolate #-}
 
 -- | An efficient get method for strict 'S.ByteString's. Fails if fewer than @n@
 -- bytes are left in the input. If @n <= 0@ then the empty string is returned.

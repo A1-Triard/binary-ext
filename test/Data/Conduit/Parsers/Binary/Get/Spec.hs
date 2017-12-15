@@ -36,7 +36,7 @@ import Data.Semigroup hiding (Option)
 import Data.Void
 import Data.Word
 import Test.HUnit.Base hiding (Label)
-import qualified Data.Conduit.Parsers.Binary as G
+import qualified Data.Conduit.Parsers as G
 import qualified Data.Conduit.Parsers.Binary.ByteOffset as G
 import Data.Conduit.Parsers.Binary.Get hiding (runGet)
 import qualified Data.Conduit.Parsers.Binary.Get as G (runGet)
@@ -63,7 +63,7 @@ tests = TestList
   ]
 
 runGet :: Monad m => GetM G.ByteOffset i o e m a -> ConduitM i o m (Either e a, Word64)
-runGet !g = (\(!r, !s) -> (r, G.decodingBytesRead s)) <$> G.runGetC (G.startDecoding $ G.ByteOffset 0) g
+runGet !g = (\(!r, !s) -> (r, G.decodingElemsRead s)) <$> G.runGetC (G.startDecoding $ G.ByteOffset 0) g
 
 testInput1 :: [S.ByteString]
 testInput1 =

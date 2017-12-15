@@ -31,6 +31,7 @@ module Data.Conduit.Parsers.Text.TextOffset
 import qualified Data.Text as S (Text)
 import qualified Data.Text as ST hiding (Text, head, last, tail, init)
 import Data.Word
+import Data.Conduit.Parsers
 import Data.Conduit.Parsers.GetC
 import Data.Conduit.Parsers.Text
 
@@ -45,9 +46,9 @@ instance DecodingState TextOffset where
       (x : _) -> fromIntegral (ST.length x)
   {-# INLINE decoded #-}
 
-instance DecodingCharsRead TextOffset where
-  decodingCharsRead (TextOffset !o _ _) = o
-  {-# INLINE decodingCharsRead #-}
+instance DecodingElemsRead TextOffset where
+  decodingElemsRead (TextOffset !o _ _) = o
+  {-# INLINE decodingElemsRead #-}
 
 instance DecodingLinesRead TextOffset where
   decodingLinesRead (TextOffset _ !l _) = l

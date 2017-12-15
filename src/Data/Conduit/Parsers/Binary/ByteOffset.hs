@@ -31,6 +31,7 @@ module Data.Conduit.Parsers.Binary.ByteOffset
 import qualified Data.ByteString as S (ByteString)
 import qualified Data.ByteString as SB hiding (ByteString, head, last, init, tail)
 import Data.Word
+import Data.Conduit.Parsers
 import Data.Conduit.Parsers.Binary
 import Data.Conduit.Parsers.GetC
 import Data.Conduit.Parsers.PutS
@@ -42,9 +43,9 @@ instance DecodingState ByteOffset where
   decoded !i (ByteOffset !s) = ByteOffset (s + fromIntegral (SB.length i))
   {-# INLINE decoded #-}
 
-instance DecodingBytesRead ByteOffset where
-  decodingBytesRead (ByteOffset !s) = s
-  {-# INLINE decodingBytesRead #-}
+instance DecodingElemsRead ByteOffset where
+  decodingElemsRead (ByteOffset !s) = s
+  {-# INLINE decodingElemsRead #-}
 
 instance EncodingState ByteOffset where
   type EncodingToken ByteOffset = Word64

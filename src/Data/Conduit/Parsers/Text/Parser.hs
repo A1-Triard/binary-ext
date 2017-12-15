@@ -123,8 +123,8 @@ runParser !g = fst <$> runGetC (startDecoding $ TextOffset 0 0 0) g
 {-# INLINE runParser #-}
 
 -- | Get the total number of bytes read to this point.
-charsRead :: (DecodingState s, DecodingCharsRead s, Monad m) => GetM s i o e m Word64
-charsRead = getC $ \ !x -> return (Right $ decodingCharsRead x, x)
+charsRead :: (DecodingState s, DecodingElemsRead s, Monad m) => GetM s i o e m Word64
+charsRead = elemsRead
 {-# INLINE charsRead #-}
 
 -- | Get the total number of bytes read to this point.

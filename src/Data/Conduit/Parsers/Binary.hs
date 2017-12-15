@@ -18,20 +18,11 @@
 -- and all functions, which could not be defined using 'GetC' public interface only.
 
 module Data.Conduit.Parsers.Binary
-  ( DecodingBytesRead (..)
-  , EncodingBytesWrote (..)
+  ( EncodingBytesWrote (..)
   ) where
 
 import Data.Word
-import Data.Conduit.Parsers.GetC
 import Data.Conduit.Parsers.PutS
-
-class DecodingBytesRead s where
-  decodingBytesRead :: s -> Word64
-
-instance (DecodingState s, DecodingBytesRead s) => DecodingBytesRead (Decoding s i) where
-  decodingBytesRead = decodingBytesRead . decodingRead
-  {-# INLINE decodingBytesRead #-}
 
 class EncodingBytesWrote s where
   encodingBytesWrote :: s -> Word64

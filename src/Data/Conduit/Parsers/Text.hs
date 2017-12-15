@@ -18,17 +18,14 @@
 -- and all functions, which could not be defined using 'GetC' public interface only.
 
 module Data.Conduit.Parsers.Text
-  ( DecodingCharsRead (..)
-  , DecodingLinesRead (..)
+  ( DecodingLinesRead (..)
   , DecodingColumnsRead (..)
   , DecodingTextRead
   ) where
 
 import Data.Word
+import Data.Conduit.Parsers
 import Data.Conduit.Parsers.GetC
-
-class DecodingCharsRead s where
-  decodingCharsRead :: s -> Word64
 
 class DecodingLinesRead s where
   decodingLinesRead :: s -> Word64
@@ -36,13 +33,9 @@ class DecodingLinesRead s where
 class DecodingColumnsRead s where
   decodingColumnsRead :: s -> Word64
 
-class (DecodingCharsRead s, DecodingLinesRead s, DecodingColumnsRead s) => DecodingTextRead s where
+class (DecodingElemsRead s, DecodingLinesRead s, DecodingColumnsRead s) => DecodingTextRead s where
 
-instance (DecodingCharsRead s, DecodingLinesRead s, DecodingColumnsRead s) => DecodingTextRead s where
-
-instance (DecodingState s, DecodingCharsRead s) => DecodingCharsRead (Decoding s i) where
-  decodingCharsRead = decodingCharsRead . decodingRead
-  {-# INLINE decodingCharsRead #-}
+instance (DecodingElemsRead s, DecodingLinesRead s, DecodingColumnsRead s) => DecodingTextRead s where
 
 instance (DecodingState s, DecodingLinesRead s) => DecodingLinesRead (Decoding s i) where
   decodingLinesRead = decodingLinesRead . decodingRead
