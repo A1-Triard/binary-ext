@@ -86,6 +86,7 @@ module Data.Conduit.Parsers.Text.Parser
   , skipMany
   , skipMany1
   , eitherP
+  , atEnd
   ) where
 
 import Prelude hiding (head, take, takeWhile)
@@ -292,3 +293,7 @@ rational = boolError $ castParser Tp.rational
 scientific :: Parser Bool Scientific
 scientific = boolError $ castParser Tp.scientific
 {-# INLINE scientific #-}
+
+atEnd :: Parser e Bool
+atEnd = N.nullE
+{-# INLINE atEnd #-}
