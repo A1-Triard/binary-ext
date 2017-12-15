@@ -27,6 +27,7 @@ module Data.Conduit.Parsers.Text.Gen
   , genDigit
   , genHexDigit
   , genHexByte
+  , genEnum
   ) where
 
 import Data.Bits
@@ -82,3 +83,7 @@ genHexByte !uppercase !c = do
   genHexDigit uppercase $ c `shiftR` 4
   genHexDigit uppercase $ c .&. 0xF
 {-# INLINE genHexByte #-}
+
+genEnum :: (Eq a, Ord a, Enum a, Bounded a, Show a) => Int -> a -> TextGen
+genEnum !prefix = genString . ST.drop prefix . ST.pack . show
+{-# INLINE genEnum #-}

@@ -90,9 +90,12 @@ module Data.Conduit.Parsers.Text.Parser
   , eitherP
   , match
   , try
+  , pEnum
   ) where
 
 import Prelude hiding (head, take, takeWhile)
+import Control.Applicative
+import Control.Monad.Error.Class
 import Data.Attoparsec.Text (inClass, notInClass, isEndOfLine, isHorizontalSpace)
 import qualified Data.Attoparsec.Text as T (Parser)
 import qualified Data.Attoparsec.Text as TP (parse, IResult (..))
@@ -314,3 +317,10 @@ pRational = boolError $ castParser Tp.rational
 pScientific :: Parser Bool Scientific
 pScientific = boolError $ castParser Tp.scientific
 {-# INLINE pScientific #-}
+
+pEnum :: (Eq a, Ord a, Enum a, Bounded a, Show a) => Int -> Parser Bool a
+pEnum !prefix = do
+  !end <- N.nullE
+  if end then throwError True else return ()
+  foldl1 (<|>) [pStringIs (ST.drop prefix $ ST.pack $ show t) ?=>> const (return ()) >> return t | t <- [minBound .. maxBound]] ?>> return False
+{-# INLINE pEnum #-}
