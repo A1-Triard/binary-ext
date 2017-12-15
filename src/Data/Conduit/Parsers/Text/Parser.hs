@@ -41,7 +41,7 @@ module Data.Conduit.Parsers.Text.Parser
   , notChar
   , satisfy
   , satisfyWith
-  , skip
+  , skip1
   , peekChar
   , peekChar'
   , digit
@@ -189,9 +189,9 @@ satisfyWith :: (Char -> a) -> (a -> Bool) -> Parser Bool a
 satisfyWith tr = boolError . castParser . Tp.satisfyWith tr
 {-# INLINE satisfyWith #-}
 
-skip :: (Char -> Bool) -> Parser Bool ()
-skip = boolError . castParser . Tp.skip
-{-# INLINE skip #-}
+skip1 :: (Char -> Bool) -> Parser Bool ()
+skip1 = boolError . castParser . Tp.skip
+{-# INLINE skip1 #-}
 
 peekChar :: Parser e (Maybe Char)
 peekChar = anyError $ castParser Tp.peekChar

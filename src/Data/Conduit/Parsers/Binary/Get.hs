@@ -85,6 +85,7 @@ import Data.Maybe
 import Data.Semigroup hiding (Option)
 import Data.Word
 import Control.Monad.Error.Map
+import Data.Conduit.Parsers
 import Data.Conduit.Parsers.Binary
 import Data.Conduit.Parsers.Binary.ByteOffset
 import Data.Conduit.Parsers.GetC
@@ -126,29 +127,6 @@ castGet !g = getC $
 voidError :: Monad m => GetM s i o e m a -> GetM s i o () m a
 voidError = mapError (const ())
 {-# INLINE voidError #-}
-
--- | Skip ahead @n@ bytes. Fails if fewer than @n@ bytes are available.
-skip :: (DecodingState s, DecodingToken s ~ S.ByteString, Monad m) => Word64 -> GetM s S.ByteString o () m ()
-skip !n = getC $
-  go 0
-  where
-  go !consumed !decoding
-    | consumed > n = error "Data.Binary.Conduit.Get.skip"
-    | consumed == n = return (Right (), decoding)
-    | otherwise = do
-      !mi <- await
-      case mi of
-        Nothing -> return (Left (), decoding)
-        Just !i -> do
-          let !gap = n - consumed
-          if gap >= fromIntegral (SB.length i)
-            then do
-              go (consumed + fromIntegral (SB.length i)) (decoded i decoding)
-            else do
-              let (!got, !rest) = SB.splitAt (fromIntegral gap) i
-              leftover rest
-              return (Right (), decoded got decoding)
-{-# INLINE skip #-}
 
 -- | Isolate a decoder to operate with a fixed number of bytes, and fail if
 -- fewer bytes were consumed, or if fewer bytes are left in the input.
