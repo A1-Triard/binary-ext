@@ -114,6 +114,12 @@ instance (Monoid e, Monad m) => Alternative (GetM s i o e m) where
   a <|> b = catchError (transaction a) $ \ !ea -> catchError (transaction b) $ \ !eb -> throwError (ea `mappend` eb)
   {-# INLINE (<|>) #-}
 
+instance (Monoid e, Monad m) => MonadPlus (GetM s i o e m) where
+  mzero = empty
+  {-# INLINE mzero #-}
+  mplus a b = a <|> b
+  {-# INLINE mplus #-}
+
 transaction :: Monad m => GetM s i o e m a -> GetM s i o e m a
 transaction !g = getC $ \ !c -> do
   (!r, !f) <- runGetC (Decoding { decodingRead = decodingRead c, tracking = Just [] }) g

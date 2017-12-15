@@ -36,6 +36,7 @@ import Data.Semigroup hiding (Option)
 import Data.Void
 import Data.Word
 import Test.HUnit.Base hiding (Label)
+import qualified Data.Conduit.Parsers.Binary as G
 import qualified Data.Conduit.Parsers.Binary.ByteOffset as G
 import Data.Conduit.Parsers.Binary.Get hiding (runGet)
 import qualified Data.Conduit.Parsers.Binary.Get as G (runGet)

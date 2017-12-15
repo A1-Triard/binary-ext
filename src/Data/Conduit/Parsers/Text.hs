@@ -25,6 +25,7 @@ module Data.Conduit.Parsers.Text
   ) where
 
 import Data.Word
+import Data.Conduit.Parsers.GetC
 
 class DecodingCharsRead s where
   decodingCharsRead :: s -> Word64
@@ -38,3 +39,15 @@ class DecodingColumnsRead s where
 class (DecodingCharsRead s, DecodingLinesRead s, DecodingColumnsRead s) => DecodingTextRead s where
 
 instance (DecodingCharsRead s, DecodingLinesRead s, DecodingColumnsRead s) => DecodingTextRead s where
+
+instance (DecodingState s, DecodingCharsRead s) => DecodingCharsRead (Decoding s i) where
+  decodingCharsRead = decodingCharsRead . decodingRead
+  {-# INLINE decodingCharsRead #-}
+
+instance (DecodingState s, DecodingLinesRead s) => DecodingLinesRead (Decoding s i) where
+  decodingLinesRead = decodingLinesRead . decodingRead
+  {-# INLINE decodingLinesRead #-}
+
+instance (DecodingState s, DecodingColumnsRead s) => DecodingColumnsRead (Decoding s i) where
+  decodingColumnsRead = decodingColumnsRead . decodingRead
+  {-# INLINE decodingColumnsRead #-}

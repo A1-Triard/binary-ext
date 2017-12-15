@@ -23,8 +23,10 @@ library
                  , Data.Conduit.Parsers.Binary.Get
                  , Data.Conduit.Parsers.Binary.Put
                  , Data.Conduit.Parsers.Text
+                 , Data.Conduit.Parsers.Text.Parser
                  , Data.Conduit.Parsers.Text.TextOffset
   build-depends: base >= 4.7 && < 5
+               , attoparsec
                , binary
                , bytestring
                , conduit >= 1.2.12
@@ -36,6 +38,7 @@ library
                , monad-loops
                , mono-traversable
                , mtl
+               , scientific
                , text
                , transformers
                , transformers-base
@@ -61,6 +64,7 @@ test-suite binary-ext-test
   build-depends: base
                , HUnit
                , binary-ext
+               , attoparsec
                , binary
                , bytestring
                , conduit >= 1.2.12
@@ -72,6 +76,7 @@ test-suite binary-ext-test
                , monad-loops
                , mono-traversable
                , mtl
+               , scientific
                , text
                , transformers
                , transformers-base
