@@ -24,12 +24,19 @@ module Data.Conduit.Parsers.Text.Gen
   , genText
   , genLazyText
   , genShow
+  , genDigit
+  , genHexDigit
+  , genHexByte
   ) where
 
+import Data.Bits
+import Data.Char
 import Data.Conduit
+import qualified Data.Text as S (Text)
+import qualified Data.Text as ST hiding (Text, head, last, tail, init)
 import Data.Text.Lazy (Text)
 import qualified Data.Text.Lazy as T hiding (Text, head, last, tail, init)
-import qualified Data.Text as S (Text)
+import Data.Word
 import Data.Conduit.Parsers.PutS
 
 class (EncodingState s, EncodingToken s ~ ()) => DefaultTextGenState s where
@@ -56,3 +63,22 @@ genLazyText !x = putS $ \ !t -> ((), encoded (mapM_ yield $ T.toChunks x, ()) t)
 genShow :: Show a => a -> TextGen
 genShow = genLazyText . T.pack . show
 {-# INLINE genShow #-}
+
+genDigit :: Integral a => a -> TextGen
+genDigit = genText . ST.singleton . chr . (ord '0' +) . fromIntegral
+{-# INLINE genDigit #-}
+
+genHexDigit :: Integral a => Bool -> a -> TextGen
+genHexDigit !uppercase =
+  genText . ST.singleton . chr . toCharCode . fromIntegral
+  where
+  toCharCode !x
+    | x < 10 = ord '0' + x
+    | otherwise = (if uppercase then ord 'A' else ord 'a') + x
+{-# INLINE genHexDigit #-}
+
+genHexByte :: Bool -> Word8 -> TextGen
+genHexByte !uppercase !c = do
+  genHexDigit uppercase $ c `shiftR` 4
+  genHexDigit uppercase $ c .&. 0xF
+{-# INLINE genHexByte #-}

@@ -45,6 +45,8 @@ module Data.Conduit.Parsers.Text.Parser
   , peekChar
   , peekChar'
   , digit
+  , hexDigit
+  , hexByte
   , letter
   , space
   , inClass
@@ -97,6 +99,7 @@ import qualified Data.Attoparsec.Text as T (Parser)
 import qualified Data.Attoparsec.Text as TP (parse, IResult (..))
 import qualified Data.Attoparsec.Text as Tp hiding (parse, parseOnly, Parser, Result, IResult, Done, Partial, Fail, inClass, notInClass, isEndOfLine, isHorizontalSpace)
 import Data.Bits
+import Data.Char
 import Data.Conduit
 import qualified Data.Conduit.Combinators as N
 import Data.List.NonEmpty hiding (take, takeWhile)
@@ -204,9 +207,26 @@ peekChar' :: Parser e Char
 peekChar' = anyError $ castParser Tp.peekChar'
 {-# INLINE peekChar' #-}
 
-digit :: Parser Bool Char
-digit = boolError $ castParser Tp.digit
+digit :: Integral a => Parser Bool a
+digit = boolError $ (\ !x -> fromIntegral $ ord x - ord '0') <$> castParser Tp.digit
 {-# INLINE digit #-}
+
+hexDigit :: Integral a => Parser Bool a
+hexDigit =
+  (fromIntegral . digitValue) <$> satisfy isHexDigit
+  where
+  digitValue x
+    | x >= 'a' = 10 + (ord x - ord 'a')
+    | x >= 'A' = 10 + (ord x - ord 'A')
+    | otherwise = ord x - ord '0'
+{-# INLINE hexDigit #-}
+
+hexByte :: Parser Bool Word8
+hexByte = do
+  !h <- hexDigit
+  !l <- hexDigit
+  return $ h `shiftL` 4 .|. l
+{-# INLINE hexByte #-}
 
 letter :: Parser Bool Char
 letter = boolError $ castParser Tp.letter
