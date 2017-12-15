@@ -1,0 +1,19 @@
+module Data.Conduit.Parsers
+  ( choice
+  , count
+  , option
+  , many'
+  , many1
+  , many1'
+  , manyTill
+  , manyTill'
+  , sepBy
+  , sepBy'
+  , sepBy1
+  , sepBy1'
+  , skipMany
+  , skipMany1
+  , eitherP
+  ) where
+
+import Data.Attoparsec.Text

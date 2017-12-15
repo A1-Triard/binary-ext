@@ -71,6 +71,21 @@ module Data.Conduit.Parsers.Text.Parser
   , double
   , rational
   , scientific
+  , choice
+  , count
+  , option
+  , many'
+  , many1
+  , many1'
+  , manyTill
+  , manyTill'
+  , sepBy
+  , sepBy'
+  , sepBy1
+  , sepBy1'
+  , skipMany
+  , skipMany1
+  , eitherP
   ) where
 
 import Prelude hiding (head, take, takeWhile)
@@ -89,6 +104,7 @@ import qualified Data.Text as S (Text)
 import qualified Data.Text as ST hiding (Text, head, last, tail, init)
 import Data.Word
 import Control.Monad.Error.Map
+import Data.Conduit.Parsers
 import Data.Conduit.Parsers.Text
 import Data.Conduit.Parsers.Text.TextOffset
 import Data.Conduit.Parsers.GetC
