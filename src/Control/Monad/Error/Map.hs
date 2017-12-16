@@ -22,12 +22,16 @@ module Control.Monad.Error.Map
   , many''
   , many1''
   , manyTill''
+  , sepBy''
+  , sepBy1''
   ) where
 
+import Prelude hiding (head, tail, init, last, minimum)
 import Control.Monad
 import Control.Monad.Error.Class
 import Control.Monad.Trans.Except
 import Data.Conduit
+import Data.List.NonEmpty (NonEmpty (..))
 import Data.Maybe
 import Data.Void
 
@@ -74,8 +78,8 @@ option'' ::
   ( MonadPlus m_Unit
   , MonadMapError e m_e () m_Unit
   , MonadMapError () m_Unit e' m_e'
-  ) => a -> m_e a -> m_e' a
-option'' f !x = mapError (error "Control.Monad.Error.Map.eoption") $ mapError (const ()) x `mplus` return f
+  ) => m_e a -> m_e' (Maybe a)
+option'' !x = mapError (error "Control.Monad.Error.Map.option''") $ mapError (const ()) (Just <$> x) `mplus` return Nothing
 {-# INLINE option'' #-}
 
 many'' ::
@@ -87,7 +91,7 @@ many'' !x =
   reverse <$> go []
   where
   go !r = do
-    !n <- option'' Nothing $ Just <$> x
+    !n <- option'' x
     case n of
       Nothing -> return r
       Just !c -> go (c : r)
@@ -97,11 +101,11 @@ many1'' ::
   ( MonadPlus m_Unit
   , MonadMapError e m_e () m_Unit
   , MonadMapError () m_Unit e m_e
-  ) => m_e a -> m_e [a]
+  ) => m_e a -> m_e (NonEmpty a)
 many1'' !x = do
   !h <- x
   !t <- many'' x
-  return $ h : t
+  return $ h :| t
 {-# INLINE many1'' #-}
 
 manyTill'' ::
@@ -113,10 +117,39 @@ manyTill'' !x !end =
   reverse <$> go []
   where
   go !r = do
-    !n <- option'' False $ (const True) <$> end
-    if n
-      then return r
-      else do
+    !n <- option'' end
+    case n of
+      Just _ -> return r
+      Nothing -> do
         !c <- x
         go (c : r)
 {-# INLINE manyTill'' #-}
+
+sepBy'' ::
+  ( MonadPlus m_Unit
+  , MonadMapError e m_e () m_Unit
+  , MonadMapError () m_Unit e'' m_e''
+  , MonadMapError e' m_e' () m_Unit
+  , MonadMapError () m_Unit () m_Unit
+  ) => m_e a -> m_e' s -> m_e'' [a]
+sepBy'' !x !sep = do
+  !h <- option'' x
+  case h of
+    Nothing -> return []
+    Just c -> do
+      !t <- many'' (mapError (const ()) sep >> mapError (const ()) x)
+      return $ c : t
+{-# INLINE sepBy'' #-}
+
+sepBy1'' ::
+  ( MonadPlus m_Unit
+  , MonadMapError e m_e () m_Unit
+  , MonadMapError () m_Unit e m_e
+  , MonadMapError e' m_e' () m_Unit
+  , MonadMapError () m_Unit () m_Unit
+  ) => m_e a -> m_e' s -> m_e (NonEmpty a)
+sepBy1'' !x !sep = do
+  !h <- x
+  !t <- many'' (mapError (const ()) sep >> mapError (const ()) x)
+  return $ h :| t
+{-# INLINE sepBy1'' #-}

@@ -5,10 +5,8 @@ module Data.Conduit.Parsers
   , many''
   , many1''
   , manyTill''
-  , sepBy
-  , sepBy'
-  , sepBy1
-  , sepBy1'
+  , sepBy''
+  , sepBy1''
   , skipMany
   , skipMany1
   , eitherP
