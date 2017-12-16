@@ -86,8 +86,8 @@ module Data.Conduit.Parsers.Text.Parser
   , skipMany
   , skipMany1
   , eitherP
-  , match
-  , try
+  , matchP
+  , tryP
   , pEnum
   ) where
 

@@ -27,8 +27,8 @@ module Data.Conduit.Parsers.GetC
   , GetM
   , runGetC
   , getC
-  , track
-  , try
+  , trackP
+  , tryP
   ) where
 
 import Control.Applicative
@@ -117,7 +117,7 @@ type GetM s i o e m = ConduitM i o (GetC s i e m)
 instance (Monoid e, Monad m) => Alternative (GetM s i o e m) where
   empty = throwError mempty
   {-# INLINE empty #-}
-  a <|> b = catchError (try a) $ \ !ea -> catchError (try b) $ \ !eb -> throwError (ea `mappend` eb)
+  a <|> b = catchError (tryP a) $ \ !ea -> catchError (tryP b) $ \ !eb -> throwError (ea `mappend` eb)
   {-# INLINE (<|>) #-}
 
 instance (Monoid e, Monad m) => MonadPlus (GetM s i o e m) where
@@ -126,20 +126,20 @@ instance (Monoid e, Monad m) => MonadPlus (GetM s i o e m) where
   mplus a b = a <|> b
   {-# INLINE mplus #-}
 
-try :: Monad m => GetM s i o e m a -> GetM s i o e m a
-try !g = getC $ \ !c -> do
-  (!t, !d) <- runGetC (startDecoding $ decodingRead c) $ track g
+tryP :: Monad m => GetM s i o e m a -> GetM s i o e m a
+tryP !g = getC $ \ !c -> do
+  (!t, !d) <- runGetC (startDecoding $ decodingRead c) $ trackP g
   case t of
     Right (!f, !r) -> return (Right r, continueDecoding (decodingRead d) f c)
     Left (!f, !e) -> forM_ f leftover >> return (Left e, c)
-{-# INLINE try #-}
+{-# INLINE tryP #-}
 
-track :: Monad m => GetM s i o e m a -> GetM s i o ([i], e) m ([i], a)
-track !g = getC $ \ !c -> do
+trackP :: Monad m => GetM s i o e m a -> GetM s i o ([i], e) m ([i], a)
+trackP !g = getC $ \ !c -> do
   (!r, !f) <- runGetC (Decoding { decodingRead = decodingRead c, tracking = Just [] }) g
   let !tracking_f = fromMaybe (error "Data.Conduit.Parsers.GetC.track") $ tracking f
   return (either (Left . (tracking_f,)) (Right . (tracking_f,)) r, Decoding { decodingRead = decodingRead f, tracking = (tracking_f ++) <$> tracking c })
-{-# INLINE track #-}
+{-# INLINE trackP #-}
 
 -- | Run a 'Get' monad, unwrapping all internal transformers in a reversible way.
 -- @'getC' . 'flip' runGetC = 'id'@

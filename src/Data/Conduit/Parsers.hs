@@ -18,8 +18,8 @@ module Data.Conduit.Parsers
   , endOfInput
   , skip
   , isolate
-  , match
-  , try
+  , matchP
+  , tryP
   ) where
 
 import Control.Monad.Error.Class
@@ -120,7 +120,6 @@ endOfInput = do
   if end then return () else throwError ()
 {-# INLINE endOfInput #-}
 
-match :: (DecodingState s, Monoid (DecodingToken s), Monad m) => GetM s (DecodingToken s) o e m a -> GetM s (DecodingToken s) o e m (DecodingToken s, a)
-match !p = (\(!t, !r) -> (foldl (flip mappend) mempty t, r)) <$> mapError snd (track p)
-{-# INLINE match #-}
-
+matchP :: (DecodingState s, Monoid (DecodingToken s), Monad m) => GetM s (DecodingToken s) o e m a -> GetM s (DecodingToken s) o e m (DecodingToken s, a)
+matchP !p = (\(!t, !r) -> (foldl (flip mappend) mempty t, r)) <$> mapError snd (trackP p)
+{-# INLINE matchP #-}
