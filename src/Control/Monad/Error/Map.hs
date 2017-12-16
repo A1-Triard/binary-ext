@@ -18,8 +18,13 @@ module Control.Monad.Error.Map
   ( MonadMapError (..)
   , (?=>>)
   , (?>>)
+  , option''
+  , many''
+  , many1''
+  , manyTill''
   ) where
 
+import Control.Monad
 import Control.Monad.Error.Class
 import Control.Monad.Trans.Except
 import Data.Conduit
@@ -64,3 +69,54 @@ infixl 1 ?>>
   $ catchError (mapError (const Nothing) action)
   $ const $ (throwError . Just) =<< mapError absurd mapper
 {-# INLINE (?>>) #-}
+
+option'' ::
+  ( MonadPlus m_Unit
+  , MonadMapError e m_e () m_Unit
+  , MonadMapError () m_Unit e' m_e'
+  ) => a -> m_e a -> m_e' a
+option'' f !x = mapError (error "Control.Monad.Error.Map.eoption") $ mapError (const ()) x `mplus` return f
+{-# INLINE option'' #-}
+
+many'' ::
+  ( MonadPlus m_Unit
+  , MonadMapError e m_e () m_Unit
+  , MonadMapError () m_Unit e' m_e'
+  ) => m_e a -> m_e' [a]
+many'' !x =
+  reverse <$> go []
+  where
+  go !r = do
+    !n <- option'' Nothing $ Just <$> x
+    case n of
+      Nothing -> return r
+      Just !c -> go (c : r)
+{-# INLINE many'' #-}
+
+many1'' ::
+  ( MonadPlus m_Unit
+  , MonadMapError e m_e () m_Unit
+  , MonadMapError () m_Unit e m_e
+  ) => m_e a -> m_e [a]
+many1'' !x = do
+  !h <- x
+  !t <- many'' x
+  return $ h : t
+{-# INLINE many1'' #-}
+
+manyTill'' ::
+  ( MonadPlus m_Unit
+  , MonadMapError e' m_e' () m_Unit
+  , MonadMapError () m_Unit e m_e
+  ) => m_e a -> m_e' b -> m_e [a]
+manyTill'' !x !end =
+  reverse <$> go []
+  where
+  go !r = do
+    !n <- option'' False $ (const True) <$> end
+    if n
+      then return r
+      else do
+        !c <- x
+        go (c : r)
+{-# INLINE manyTill'' #-}

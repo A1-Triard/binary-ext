@@ -1,12 +1,10 @@
 module Data.Conduit.Parsers
   ( choice
   , count
-  , option
-  , many'
-  , many1
-  , many1'
-  , manyTill
-  , manyTill'
+  , option''
+  , many''
+  , many1''
+  , manyTill''
   , sepBy
   , sepBy'
   , sepBy1
@@ -25,7 +23,7 @@ module Data.Conduit.Parsers
   ) where
 
 import Control.Monad.Error.Class
-import Data.Attoparsec.Text hiding (skip, endOfInput, match, try)
+import Data.Attoparsec.Text hiding (skip, endOfInput, match, try, option)
 import qualified Data.ByteString as S (ByteString)
 import qualified Data.ByteString as SB hiding (ByteString, head, last, init, tail)
 import Data.Conduit
@@ -120,6 +118,9 @@ endOfInput :: (DecodingState s, MonoFoldable (DecodingToken s), Monad m) => GetM
 endOfInput = do
   end <- N.nullE
   if end then return () else throwError ()
+{-# INLINE endOfInput #-}
 
 match :: (DecodingState s, Monoid (DecodingToken s), Monad m) => GetM s (DecodingToken s) o e m a -> GetM s (DecodingToken s) o e m (DecodingToken s, a)
 match !p = (\(!t, !r) -> (foldl (flip mappend) mempty t, r)) <$> mapError snd (track p)
+{-# INLINE match #-}
+

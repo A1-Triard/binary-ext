@@ -75,12 +75,10 @@ module Data.Conduit.Parsers.Text.Parser
   , pScientific
   , choice
   , count
-  , option
-  , many'
-  , many1
-  , many1'
-  , manyTill
-  , manyTill'
+  , option''
+  , many''
+  , many1''
+  , manyTill''
   , sepBy
   , sepBy'
   , sepBy1
