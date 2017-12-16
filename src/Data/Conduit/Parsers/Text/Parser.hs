@@ -81,12 +81,13 @@ module Data.Conduit.Parsers.Text.Parser
   , manyTill''
   , sepBy''
   , sepBy1''
-  , skipMany
-  , skipMany1
+  , skipMany''
+  , skipMany1''
   , eitherP
   , matchP
   , tryP
   , pEnum
+  , endOfInput
   ) where
 
 import Prelude hiding (head, take, takeWhile)

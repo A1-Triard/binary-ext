@@ -68,6 +68,7 @@ module Data.Conduit.Parsers.Binary.Get
   , getDoublebe
   , getDoublele
   , getDoublehost
+  , endOfInput
   ) where
 
 import qualified Data.Binary.Get as S

@@ -7,8 +7,8 @@ module Data.Conduit.Parsers
   , manyTill''
   , sepBy''
   , sepBy1''
-  , skipMany
-  , skipMany1
+  , skipMany''
+  , skipMany1''
   , eitherP
   , Chunk (..)
   , DecodingElemsRead (..)

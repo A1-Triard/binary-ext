@@ -24,6 +24,8 @@ module Control.Monad.Error.Map
   , manyTill''
   , sepBy''
   , sepBy1''
+  , skipMany''
+  , skipMany1''
   ) where
 
 import Prelude hiding (head, tail, init, last, minimum)
@@ -153,3 +155,26 @@ sepBy1'' !x !sep = do
   !t <- many'' (mapError (const ()) sep >> mapError (const ()) x)
   return $ h :| t
 {-# INLINE sepBy1'' #-}
+
+skipMany'' ::
+  ( MonadPlus m_Unit
+  , MonadMapError e m_e () m_Unit
+  , MonadMapError () m_Unit e' m_e'
+  ) => m_e a -> m_e' ()
+skipMany'' !x =
+  go
+  where
+  go = do
+    n <- option'' x
+    case n of
+      Nothing -> return ()
+      Just _ -> go
+{-# INLINE skipMany'' #-}
+
+skipMany1'' ::
+  ( MonadPlus m_Unit
+  , MonadMapError e m_e () m_Unit
+  , MonadMapError () m_Unit e m_e
+  ) => m_e a -> m_e ()
+skipMany1'' !x = x >> skipMany'' x
+{-# INLINE skipMany1'' #-}
