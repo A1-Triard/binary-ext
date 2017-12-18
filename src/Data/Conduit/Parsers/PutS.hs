@@ -33,6 +33,8 @@ module Data.Conduit.Parsers.PutS
 import Control.Monad.Fix
 import Control.Monad.Trans.State.Strict
 import Data.Conduit
+import Data.String
+import qualified Data.Text as S (Text)
 
 class EncodingState s where
   type EncodingToken s :: *
@@ -77,6 +79,9 @@ deriving instance Applicative (PutS s m)
 
 -- | A 'ConduitM' with wrappers supposed to a binary serialization.
 type PutM s i o m a = PutS s (ConduitM i o m) a
+
+instance (EncodingState s, EncodingToken s ~ (), Monad m) => IsString (PutM s i S.Text m ()) where
+  fromString x = putS $ \ !t -> ((), encoded (yield (fromString x), ()) t)
 
 -- | Run a 'Put' monad, unwrapping all wrappers in a reversible way.
 -- @'putS' . runPutS = 'id'@

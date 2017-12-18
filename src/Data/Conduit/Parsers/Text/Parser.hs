@@ -37,6 +37,7 @@ module Data.Conduit.Parsers.Text.Parser
   , columnsRead
   , castParser
   , pCharIs
+  , skipCharIs
   , pChar
   , pCharIsNot
   , satisfy
@@ -52,6 +53,7 @@ module Data.Conduit.Parsers.Text.Parser
   , inClass
   , notInClass
   , pStringIs
+  , skipStringIs
   , pAsciiIgnoringCaseIs
   , skipSpace
   , skipWhile
@@ -92,6 +94,7 @@ module Data.Conduit.Parsers.Text.Parser
 
 import Prelude hiding (head, take, takeWhile)
 import Control.Applicative
+import Control.Monad
 import Data.Attoparsec.Text (inClass, notInClass, isEndOfLine, isHorizontalSpace)
 import qualified Data.Attoparsec.Text as T (Parser)
 import qualified Data.Attoparsec.Text as TP (parse, IResult (..))
@@ -165,6 +168,10 @@ anyError :: Monad m => GetM s i o e' m a -> GetM s i o e m a
 anyError = mapError (const $ error "Data.Conduit.Parsers.Text.Parser.anyError")
 {-# INLINE anyError #-}
 
+skipCharIs :: Char -> Parser () ()
+skipCharIs = void . pCharIs
+{-# INLINE skipCharIs #-}
+
 pCharIs :: Char -> Parser () Char
 pCharIs = voidError . castParser . Tp.char
 {-# INLINE pCharIs #-}
@@ -225,6 +232,10 @@ pLetter = voidError $ castParser Tp.letter
 pSpace :: Parser () Char
 pSpace = voidError $ castParser Tp.space
 {-# INLINE pSpace #-}
+
+skipStringIs :: S.Text -> Parser () ()
+skipStringIs = void . pStringIs
+{-# INLINE skipStringIs #-}
 
 pStringIs :: S.Text -> Parser () S.Text
 pStringIs = voidError . castParser . Tp.string
