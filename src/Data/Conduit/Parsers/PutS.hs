@@ -33,6 +33,7 @@ module Data.Conduit.Parsers.PutS
 import Control.Monad.Fix
 import Control.Monad.Trans.State.Strict
 import Data.Conduit
+import Data.Semigroup
 import Data.String
 import qualified Data.Text as S (Text)
 
@@ -76,6 +77,9 @@ deriving instance Monad (PutS s m)
 deriving instance Functor (PutS s m)
 deriving instance MonadFix (PutS s m)
 deriving instance Applicative (PutS s m)
+
+instance Monad m => Semigroup (PutS s m ()) where
+  a <> b = a >> b
 
 -- | A 'ConduitM' with wrappers supposed to a binary serialization.
 type PutM s i o m a = PutS s (ConduitM i o m) a
