@@ -92,7 +92,6 @@ module Data.Conduit.Parsers.Text.Parser
 
 import Prelude hiding (head, take, takeWhile)
 import Control.Applicative
-import Control.Monad.Error.Class
 import Data.Attoparsec.Text (inClass, notInClass, isEndOfLine, isHorizontalSpace)
 import qualified Data.Attoparsec.Text as T (Parser)
 import qualified Data.Attoparsec.Text as TP (parse, IResult (..))
@@ -164,38 +163,30 @@ voidError = mapError (const ())
 
 anyError :: Monad m => GetM s i o e' m a -> GetM s i o e m a
 anyError = mapError (const $ error "Data.Conduit.Parsers.Text.Parser.anyError")
+{-# INLINE anyError #-}
 
-isNotEnoughInput :: String -> Bool
-isNotEnoughInput ('n' : _) = True -- "not enough input"
-isNotEnoughInput _ = False -- "string", "stringCI", "takeWhile1", "satisfy", "satisfyWith", "skip", "takeWith"
-{-# INLINE isNotEnoughInput #-}
-
-boolError :: Monad m => GetM s i o (NonEmpty String) m a -> GetM s i o Bool m a
-boolError = mapError (isNotEnoughInput . head)
-{-# INLINE boolError #-}
-
-pCharIs :: Char -> Parser Bool Char
-pCharIs = boolError . castParser . Tp.char
+pCharIs :: Char -> Parser () Char
+pCharIs = voidError . castParser . Tp.char
 {-# INLINE pCharIs #-}
 
 pChar :: Parser () Char
 pChar = voidError $ castParser Tp.anyChar
 {-# INLINE pChar #-}
 
-pCharIsNot :: Char -> Parser Bool Char
-pCharIsNot = boolError . castParser . Tp.notChar
+pCharIsNot :: Char -> Parser () Char
+pCharIsNot = voidError . castParser . Tp.notChar
 {-# INLINE pCharIsNot #-}
 
-satisfy :: (Char -> Bool) -> Parser Bool Char
-satisfy = boolError . castParser . Tp.satisfy
+satisfy :: (Char -> Bool) -> Parser () Char
+satisfy = voidError . castParser . Tp.satisfy
 {-# INLINE satisfy #-}
 
-satisfyWith :: (Char -> a) -> (a -> Bool) -> Parser Bool a
-satisfyWith tr = boolError . castParser . Tp.satisfyWith tr
+satisfyWith :: (Char -> a) -> (a -> Bool) -> Parser () a
+satisfyWith tr = voidError . castParser . Tp.satisfyWith tr
 {-# INLINE satisfyWith #-}
 
-skip1 :: (Char -> Bool) -> Parser Bool ()
-skip1 = boolError . castParser . Tp.skip
+skip1 :: (Char -> Bool) -> Parser () ()
+skip1 = voidError . castParser . Tp.skip
 {-# INLINE skip1 #-}
 
 peekChar :: Parser e (Maybe Char)
@@ -206,11 +197,11 @@ peekChar' :: Parser e Char
 peekChar' = anyError $ castParser Tp.peekChar'
 {-# INLINE peekChar' #-}
 
-pDigit :: Integral a => Parser Bool a
-pDigit = boolError $ (\ !x -> fromIntegral $ ord x - ord '0') <$> castParser Tp.digit
+pDigit :: Integral a => Parser () a
+pDigit = voidError $ (\ !x -> fromIntegral $ ord x - ord '0') <$> castParser Tp.digit
 {-# INLINE pDigit #-}
 
-pHexDigit :: Integral a => Parser Bool a
+pHexDigit :: Integral a => Parser () a
 pHexDigit =
   (fromIntegral . digitValue) <$> satisfy isHexDigit
   where
@@ -220,31 +211,31 @@ pHexDigit =
     | otherwise = ord x - ord '0'
 {-# INLINE pHexDigit #-}
 
-pHexByte :: Parser Bool Word8
+pHexByte :: Parser () Word8
 pHexByte = do
   !h <- pHexDigit
   !l <- pHexDigit
   return $ h `shiftL` 4 .|. l
 {-# INLINE pHexByte #-}
 
-pLetter :: Parser Bool Char
-pLetter = boolError $ castParser Tp.letter
+pLetter :: Parser () Char
+pLetter = voidError $ castParser Tp.letter
 {-# INLINE pLetter #-}
 
-pSpace :: Parser Bool Char
-pSpace = boolError $ castParser Tp.space
+pSpace :: Parser () Char
+pSpace = voidError $ castParser Tp.space
 {-# INLINE pSpace #-}
 
-pStringIs :: S.Text -> Parser Bool S.Text
-pStringIs = boolError . castParser . Tp.string
+pStringIs :: S.Text -> Parser () S.Text
+pStringIs = voidError . castParser . Tp.string
 {-# INLINE pStringIs #-}
 
-pAsciiIgnoringCaseIs :: S.Text -> Parser Bool S.Text
-pAsciiIgnoringCaseIs = boolError . castParser . Tp.asciiCI
+pAsciiIgnoringCaseIs :: S.Text -> Parser () S.Text
+pAsciiIgnoringCaseIs = voidError . castParser . Tp.asciiCI
 {-# INLINE pAsciiIgnoringCaseIs #-}
 
-skipSpace :: Parser Bool ()
-skipSpace = boolError $ castParser Tp.skipSpace
+skipSpace :: Parser () ()
+skipSpace = voidError $ castParser Tp.skipSpace
 {-# INLINE skipSpace #-}
 
 skipWhile :: (Char -> Bool) -> Parser e ()
@@ -283,41 +274,39 @@ pRemainingLazyString :: Parser e Text
 pRemainingLazyString = anyError $ castParser Tp.takeLazyText
 {-# INLINE pRemainingLazyString #-}
 
-pIsEndOfLine :: Parser Bool ()
-pIsEndOfLine = boolError $ castParser Tp.endOfLine
+pIsEndOfLine :: Parser () ()
+pIsEndOfLine = voidError $ castParser Tp.endOfLine
 {-# INLINE pIsEndOfLine #-}
 
-pDecimal :: Integral a => Parser Bool a
-pDecimal = boolError $ castParser Tp.decimal
+pDecimal :: Integral a => Parser () a
+pDecimal = voidError $ castParser Tp.decimal
 {-# INLINE pDecimal #-}
 
-pHexadecimal :: (Integral a, Bits a) => Parser Bool a
-pHexadecimal = boolError $ castParser Tp.hexadecimal
+pHexadecimal :: (Integral a, Bits a) => Parser () a
+pHexadecimal = voidError $ castParser Tp.hexadecimal
 {-# INLINE pHexadecimal #-}
 
-pSignedDecimal :: Integral a => Parser Bool a
-pSignedDecimal = boolError $ castParser $ Tp.signed Tp.decimal
+pSignedDecimal :: Integral a => Parser () a
+pSignedDecimal = voidError $ castParser $ Tp.signed Tp.decimal
 {-# INLINE pSignedDecimal #-}
 
-pSignedHexadecimal :: (Integral a, Bits a) => Parser Bool a
-pSignedHexadecimal = boolError $ castParser $ Tp.signed Tp.hexadecimal
+pSignedHexadecimal :: (Integral a, Bits a) => Parser () a
+pSignedHexadecimal = voidError $ castParser $ Tp.signed Tp.hexadecimal
 {-# INLINE pSignedHexadecimal #-}
 
-pDouble :: Parser Bool Double
-pDouble = boolError $ castParser Tp.double
+pDouble :: Parser () Double
+pDouble = voidError $ castParser Tp.double
 {-# INLINE pDouble #-}
 
-pRational :: Fractional a => Parser Bool a
-pRational = boolError $ castParser Tp.rational
+pRational :: Fractional a => Parser () a
+pRational = voidError $ castParser Tp.rational
 {-# INLINE pRational #-}
 
-pScientific :: Parser Bool Scientific
-pScientific = boolError $ castParser Tp.scientific
+pScientific :: Parser () Scientific
+pScientific = voidError $ castParser Tp.scientific
 {-# INLINE pScientific #-}
 
-pEnum :: (Eq a, Ord a, Enum a, Bounded a, Show a) => Int -> Parser Bool a
+pEnum :: (Eq a, Ord a, Enum a, Bounded a, Show a) => Int -> Parser () a
 pEnum !prefix = do
-  !end <- N.nullE
-  if end then throwError True else return ()
-  foldl1 (<|>) [pStringIs (ST.drop prefix $ ST.pack $ show t) ?=>> const (return ()) >> return t | t <- [minBound .. maxBound]] ?>> return False
+  foldl1 (<|>) [pStringIs (ST.drop prefix $ ST.pack $ show t) >> return t | t <- [minBound .. maxBound]]
 {-# INLINE pEnum #-}
