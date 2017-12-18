@@ -65,7 +65,7 @@ module Data.Conduit.Parsers.Text.Parser
   , pStringTill
   , pRemainingString
   , pRemainingLazyString
-  , pIsEndOfLine
+  , skipEndOfLine
   , isEndOfLine
   , isHorizontalSpace
   , pDecimal
@@ -285,9 +285,9 @@ pRemainingLazyString :: Parser e Text
 pRemainingLazyString = anyError $ castParser Tp.takeLazyText
 {-# INLINE pRemainingLazyString #-}
 
-pIsEndOfLine :: Parser () ()
-pIsEndOfLine = voidError $ castParser Tp.endOfLine
-{-# INLINE pIsEndOfLine #-}
+skipEndOfLine :: Parser () ()
+skipEndOfLine = voidError $ castParser Tp.endOfLine
+{-# INLINE skipEndOfLine #-}
 
 pDecimal :: Integral a => Parser () a
 pDecimal = voidError $ castParser Tp.decimal
