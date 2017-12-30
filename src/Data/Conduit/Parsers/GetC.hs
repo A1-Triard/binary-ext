@@ -29,6 +29,8 @@ module Data.Conduit.Parsers.GetC
   , getC
   , trackP
   , tryP
+  , maybeG
+  , runMaybeG
   ) where
 
 import Control.Applicative
@@ -46,6 +48,14 @@ import Control.Monad.Trans.State.Strict
 import Data.Conduit
 import Data.Conduit.Lift
 import Data.Maybe hiding (fromJust)
+
+--import Control.Monad.IO.Class
+--import Control.Monad.Trans.Class
+--import Control.Monad.Trans.Except
+import Control.Monad.Trans.Maybe
+--import Control.Monad.Trans.Reader
+--import Control.Monad.Trans.State.Strict
+--import Control.Monad.Trans.Writer
 
 class DecodingState s where
   type DecodingToken s :: *
@@ -168,3 +178,21 @@ runGetC !decoding = runStateC decoding . runExceptC . transPipe runC
 getC :: Monad m => (Decoding s i -> ConduitM i o m (Either e a, Decoding s i)) -> GetM s i o e m a
 getC = transPipe C . exceptC . stateC
 {-# INLINE getC #-}
+
+maybeG :: Monad m => GetM s i o e m (Maybe a) -> GetM s i o e (MaybeT m) a
+maybeG g = getC $ \ !x -> maybeC $ em <$> runGetC x g
+  where
+  em :: (Either e (Maybe a), b) -> Maybe (Either e a, b)
+  em (Right (Just a), b) = Just (Right a, b)
+  em (Right Nothing, _) = Nothing
+  em (Left e, b) = Just (Left e, b)
+{-# INLINE maybeG #-}
+
+runMaybeG :: Monad m => GetM s i o e (MaybeT m) a -> GetM s i o e m (Maybe a)
+runMaybeG g = getC $ \ !x -> (me x <$>) $ runMaybeC $ runGetC x g
+  where
+  me :: b -> Maybe (Either e a, b) -> (Either e (Maybe a), b)
+  me _ (Just (Right a, b)) = (Right (Just a), b)
+  me _ (Just (Left e, b)) = (Left e, b)
+  me b Nothing = (Right Nothing, b)
+{-# INLINE runMaybeG #-}
