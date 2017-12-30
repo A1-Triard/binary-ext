@@ -19,6 +19,7 @@ import Test.HUnit.Base hiding (Label)
 import Test.HUnit.Text
 import qualified Data.Conduit.Parsers.Binary.Get.Spec
 import qualified Data.Conduit.Parsers.Binary.Put.Spec
+import qualified Data.Conduit.Parsers.Text.Parser.Spec
 
 main :: IO ()
 main = void $ runTestTT tests
@@ -27,4 +28,5 @@ tests :: Test
 tests = TestList
   [ Data.Conduit.Parsers.Binary.Get.Spec.tests
   , Data.Conduit.Parsers.Binary.Put.Spec.tests
+  , Data.Conduit.Parsers.Text.Parser.Spec.tests
   ]

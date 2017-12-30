@@ -64,6 +64,7 @@ test-suite binary-ext-test
   main-is: Spec.hs
   other-modules: Data.Conduit.Parsers.Binary.Get.Spec
                , Data.Conduit.Parsers.Binary.Put.Spec
+               , Data.Conduit.Parsers.Text.Parser.Spec
   build-depends: base
                , HUnit
                , binary-ext

@@ -40,7 +40,7 @@ data TextOffset = TextOffset Word64 Word64 Word64 deriving Show
 instance DecodingState TextOffset where
   type DecodingToken TextOffset = S.Text
   decoded !i (TextOffset !o !l !c) =
-    let newlines = reverse $ drop 1 $ ST.lines i in
+    let newlines = reverse $ drop 1 $ ST.split (== '\n') i in
     TextOffset (o + fromIntegral (ST.length i)) (l + fromIntegral (length newlines)) $ case newlines of
       [] -> c + fromIntegral (ST.length i)
       (x : _) -> fromIntegral (ST.length x)
