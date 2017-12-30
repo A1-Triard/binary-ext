@@ -39,22 +39,31 @@ testLinesRead = do
 parser1 :: Parser () (Char, Char)
 parser1 = do
   0 <- linesRead
+  0 <- columnsRead
   c1 <- pChar
   0 <- linesRead
+  1 <- columnsRead
   skipEndOfLine
   1 <- linesRead
+  0 <- columnsRead
   skipCharIs 'a'
   1 <- linesRead
+  1 <- columnsRead
+  skipCharIs 'u'
+  1 <- linesRead
+  2 <- columnsRead
   skipEndOfLine
   2 <- linesRead
+  0 <- columnsRead
   c2 <- pCharIsNot 'b'
   2 <- linesRead
+  1 <- columnsRead
   endOfInput
   return (c1, c2)
 
 testInput1 :: [S.Text]
 testInput1 =
   [ "t\n"
-  , "a\nx"
+  , "au\nx"
   , ""
   ]

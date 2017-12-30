@@ -66,7 +66,9 @@ genShow = genLazyString . T.pack . show
 {-# INLINE genShow #-}
 
 genDigit :: Integral a => a -> TextGen
-genDigit = genString . ST.singleton . chr . (ord '0' +) . fromIntegral
+genDigit !x
+  | x < 0 || x >= 10 = error "genDigit"
+  | otherwise = genString $ ST.singleton $ chr $ ord '0' + fromIntegral x
 {-# INLINE genDigit #-}
 
 genHexDigit :: Integral a => Bool -> a -> TextGen
@@ -74,6 +76,7 @@ genHexDigit !uppercase =
   genString . ST.singleton . chr . toCharCode . fromIntegral
   where
   toCharCode !x
+    | x < 0 || x >= 16 = error "genHexDigit"
     | x < 10 = ord '0' + x
     | otherwise = (if uppercase then ord 'A' else ord 'a') + x
 {-# INLINE genHexDigit #-}
