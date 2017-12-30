@@ -39,7 +39,6 @@ import Data.Text.Lazy (Text)
 import qualified Data.Text.Lazy as T hiding (Text, head, last, tail, init)
 import Data.Word
 import Data.Conduit.Parsers.PutS
-import Debug.Trace
 
 class (EncodingState s, EncodingToken s ~ ()) => DefaultTextGenState s where
 
@@ -74,12 +73,12 @@ genDigit !x
 
 genHexDigit :: Integral a => Bool -> a -> TextGen
 genHexDigit !uppercase =
-  genString . ST.singleton . (\ !x -> traceShow x x) . chr . toCharCode . fromIntegral
+  genString . ST.singleton . chr . toCharCode . fromIntegral
   where
   toCharCode !x
     | x < 0 || x >= 16 = error "genHexDigit"
     | x < 10 = ord '0' + x
-    | otherwise = (if uppercase then ord 'A' else ord 'a') + x
+    | otherwise = (if uppercase then ord 'A' else ord 'a') + (x - 10)
 {-# INLINE genHexDigit #-}
 
 genHexByte :: Bool -> Word8 -> TextGen
