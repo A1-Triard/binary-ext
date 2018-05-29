@@ -55,7 +55,7 @@ library
                     , TupleSections
                     , TypeFamilies
                     , UndecidableInstances
-  ghc-options: -fmax-pmcheck-iterations=100000000 -O2 -Wall -Werror -fprint-potential-instances -fsimpl-tick-factor=110
+  ghc-options: -fmax-pmcheck-iterations=100000000 -Wall -fprint-potential-instances -fsimpl-tick-factor=110
   default-language: Haskell2010
 
 test-suite binary-ext-test
@@ -96,7 +96,7 @@ test-suite binary-ext-test
                     , TupleSections
                     , TypeFamilies
                     , UndecidableInstances
-  ghc-options: -threaded -rtsopts -with-rtsopts=-N -fmax-pmcheck-iterations=100000000 -O2 -Wall -Werror -fprint-potential-instances -fsimpl-tick-factor=110
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N -fmax-pmcheck-iterations=100000000 -Wall -fprint-potential-instances -fsimpl-tick-factor=110
   default-language: Haskell2010
 
 source-repository head
