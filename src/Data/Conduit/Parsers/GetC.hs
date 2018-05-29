@@ -34,6 +34,30 @@ module Data.Conduit.Parsers.GetC
   , exceptG
   , runExceptG
   , catchExceptG
+  , readerG
+  , runReaderG
+  , stateLG
+  , runStateLG
+  , evalStateLG
+  , execStateLG
+  , stateG
+  , runStateG
+  , evalStateG
+  , execStateG
+  , writerLG
+  , runWriterLG
+  , execWriterLG
+  , writerG
+  , runWriterG
+  , execWriterG
+  , rwsLG
+  , runRWSLG
+  , evalRWSLG
+  , execRWSLG
+  , rwsG
+  , runRWSG
+  , evalRWSG
+  , execRWSG
   ) where
 
 import Control.Applicative
@@ -47,18 +71,16 @@ import Control.Monad.IO.Class
 import Control.Monad.Trans.Class
 import Control.Monad.Trans.Control
 import Control.Monad.Trans.Except
+import Control.Monad.Trans.Reader
+import Control.Monad.Trans.RWS.Strict
+import qualified Control.Monad.Trans.RWS.Lazy as L
 import Control.Monad.Trans.State.Strict
+import qualified Control.Monad.Trans.State.Lazy as L
+import Control.Monad.Trans.Writer.Strict
+import qualified Control.Monad.Trans.Writer.Lazy as L
 import Data.Conduit
 import Data.Conduit.Lift
 import Data.Maybe hiding (fromJust)
-
---import Control.Monad.IO.Class
---import Control.Monad.Trans.Class
---import Control.Monad.Trans.Except
---import Control.Monad.Trans.Maybe
---import Control.Monad.Trans.Reader
---import Control.Monad.Trans.State.Strict
---import Control.Monad.Trans.Writer
 
 class DecodingState s where
   type DecodingToken s :: *
@@ -231,3 +253,171 @@ runMaybeG g =
   me (Right (Left e, b)) = (Left e, b)
   me (Left b) = (Right Nothing, b)
 {-# INLINE runMaybeG #-}
+
+readerG :: Monad m => (r -> GetM s i o e m a) -> GetM s i o e (ReaderT r m) a
+readerG g = getC $ \ !x -> readerC $ \r -> runGetC x (g r)
+{-# INLINE readerG #-}
+
+runReaderG :: Monad m => r -> GetM s i o e (ReaderT r m) a -> GetM s i o e m a
+runReaderG r g = getC $ \ !x -> runReaderC r $ runGetC x g
+{-# INLINE runReaderG #-}
+
+stateLG :: Monad m => (t -> GetM s i o e m (a, t)) -> GetM s i o e (L.StateT t m) a
+stateLG g =
+  getC $ \ !x -> stateLC $ \t -> st <$> runGetC x (g t)
+  where
+  st :: (Either e (a, t), Decoding s i) -> ((Either e a, Decoding s i), t)
+  st (Right (a, t), b) = ((Right a, b), t)
+  st (Left e, b) = ((Left e, b), error "stateLG")
+{-# INLINE stateLG #-}
+
+runStateLG :: Monad m => t -> GetM s i o e (L.StateT t m) a -> GetM s i o e m (a, t)
+runStateLG t g =
+  getC $ \ !x -> (ts <$>) $ runStateLC t $ runGetC x g
+  where
+  ts :: ((Either e a, Decoding s i), t) -> (Either e (a, t), Decoding s i)
+  ts ((Right a, b), r) = (Right (a, r), b)
+  ts ((Left e, b), _) = (Left e, b)
+{-# INLINE runStateLG #-}
+
+evalStateLG :: Monad m => t -> GetM s i o e (L.StateT t m) a -> GetM s i o e m a
+evalStateLG t = (fst <$>) . runStateLG t
+{-# INLINE evalStateLG #-}
+
+execStateLG :: Monad m => t -> GetM s i o e (L.StateT t m) a -> GetM s i o e m t
+execStateLG t = (snd <$>) . runStateLG t
+{-# INLINE execStateLG #-}
+
+stateG :: Monad m => (t -> GetM s i o e m (a, t)) -> GetM s i o e (StateT t m) a
+stateG g =
+  getC $ \ !x -> stateC $ \t -> st <$> runGetC x (g t)
+  where
+  st :: (Either e (a, t), Decoding s i) -> ((Either e a, Decoding s i), t)
+  st (Right (a, t), b) = ((Right a, b), t)
+  st (Left e, b) = ((Left e, b), error "stateLG")
+{-# INLINE stateG #-}
+
+runStateG :: Monad m => t -> GetM s i o e (StateT t m) a -> GetM s i o e m (a, t)
+runStateG t g =
+  getC $ \ !x -> (ts <$>) $ runStateC t $ runGetC x g
+  where
+  ts :: ((Either e a, Decoding s i), t) -> (Either e (a, t), Decoding s i)
+  ts ((Right a, b), r) = (Right (a, r), b)
+  ts ((Left e, b), _) = (Left e, b)
+{-# INLINE runStateG #-}
+
+evalStateG :: Monad m => t -> GetM s i o e (StateT t m) a -> GetM s i o e m a
+evalStateG t = (fst <$>) . runStateG t
+{-# INLINE evalStateG #-}
+
+execStateG :: Monad m => t -> GetM s i o e (StateT t m) a -> GetM s i o e m t
+execStateG t = (snd <$>) . runStateG t
+{-# INLINE execStateG #-}
+
+writerLG :: (Monad m, Monoid t) => GetM s i o e m (a, t) -> GetM s i o e (L.WriterT t m) a
+writerLG g =
+  getC $ \ !x -> writerLC $ st <$> runGetC x g
+  where
+  st :: (Either e (a, t), Decoding s i) -> ((Either e a, Decoding s i), t)
+  st (Right (a, t), b) = ((Right a, b), t)
+  st (Left e, b) = ((Left e, b), error "writerLG")
+{-# INLINE writerLG #-}
+
+runWriterLG :: (Monad m, Monoid t) => GetM s i o e (L.WriterT t m) a -> GetM s i o e m (a, t)
+runWriterLG g =
+  getC $ \ !x -> (ts <$>) $ runWriterLC $ runGetC x g
+  where
+  ts :: ((Either e a, Decoding s i), t) -> (Either e (a, t), Decoding s i)
+  ts ((Right a, b), r) = (Right (a, r), b)
+  ts ((Left e, b), _) = (Left e, b)
+{-# INLINE runWriterLG #-}
+
+execWriterLG :: (Monad m, Monoid t) => GetM s i o e (L.WriterT t m) a -> GetM s i o e m t
+execWriterLG = (snd <$>) . runWriterLG
+{-# INLINE execWriterLG #-}
+
+writerG :: (Monad m, Monoid t) => GetM s i o e m (a, t) -> GetM s i o e (WriterT t m) a
+writerG g =
+  getC $ \ !x -> writerC $ st <$> runGetC x g
+  where
+  st :: (Either e (a, t), Decoding s i) -> ((Either e a, Decoding s i), t)
+  st (Right (a, t), b) = ((Right a, b), t)
+  st (Left e, b) = ((Left e, b), error "writerG")
+{-# INLINE writerG #-}
+
+runWriterG :: (Monad m, Monoid t) => GetM s i o e (WriterT t m) a -> GetM s i o e m (a, t)
+runWriterG g =
+  getC $ \ !x -> (ts <$>) $ runWriterC $ runGetC x g
+  where
+  ts :: ((Either e a, Decoding s i), t) -> (Either e (a, t), Decoding s i)
+  ts ((Right a, b), r) = (Right (a, r), b)
+  ts ((Left e, b), _) = (Left e, b)
+{-# INLINE runWriterG #-}
+
+execWriterG :: (Monad m, Monoid t) => GetM s i o e (WriterT t m) a -> GetM s i o e m t
+execWriterG = (snd <$>) . runWriterG
+{-# INLINE execWriterG #-}
+
+rwsLG :: (Monad m, Monoid w) => (r -> t -> GetM s i o e m (a, t, w)) -> GetM s i o e (L.RWST r w t m) a
+rwsLG g =
+  getC $ \ !x -> rwsLC $ \r t -> st <$> runGetC x (g r t)
+  where
+  st :: (Either e (a, t, w), Decoding s i) -> ((Either e a, Decoding s i), t, w)
+  st (Right (a, t, w), b) = ((Right a, b), t, w)
+  st (Left e, b) = ((Left e, b), error "rwsLG.s", error "rwsLG.w")
+{-# INLINE rwsLG #-}
+
+runRWSLG :: (Monad m, Monoid w) => r -> t -> GetM s i o e (L.RWST r w t m) a -> GetM s i o e m (a, t, w)
+runRWSLG r t g =
+  getC $ \ !x -> (ts <$>) $ runRWSLC r t $ runGetC x g
+  where
+  ts :: ((Either e a, Decoding s i), t, w) -> (Either e (a, t, w), Decoding s i)
+  ts ((Right a, b), x, w) = (Right (a, x, w), b)
+  ts ((Left e, b), _, _) = (Left e, b)
+{-# INLINE runRWSLG #-}
+
+evalRWSLG :: (Monad m, Monoid w) => r -> t -> GetM s i o e (L.RWST r w t m) a -> GetM s i o e m (a, w)
+evalRWSLG r t =
+  (res <$>) . runRWSLG r t
+  where
+  res (a, _, b) = (a, b)
+{-# INLINE evalRWSLG #-}
+
+execRWSLG :: (Monad m, Monoid w) => r -> t -> GetM s i o e (L.RWST r w t m) a -> GetM s i o e m (t, w)
+execRWSLG r t =
+  (res <$>) . runRWSLG r t
+  where
+  res (_, a, b) = (a, b)
+{-# INLINE execRWSLG #-}
+
+rwsG :: (Monad m, Monoid w) => (r -> t -> GetM s i o e m (a, t, w)) -> GetM s i o e (RWST r w t m) a
+rwsG g =
+  getC $ \ !x -> rwsC $ \r t -> st <$> runGetC x (g r t)
+  where
+  st :: (Either e (a, t, w), Decoding s i) -> ((Either e a, Decoding s i), t, w)
+  st (Right (a, t, w), b) = ((Right a, b), t, w)
+  st (Left e, b) = ((Left e, b), error "rwsG.s", error "rwsG.w")
+{-# INLINE rwsG #-}
+
+runRWSG :: (Monad m, Monoid w) => r -> t -> GetM s i o e (RWST r w t m) a -> GetM s i o e m (a, t, w)
+runRWSG r t g =
+  getC $ \ !x -> (ts <$>) $ runRWSC r t $ runGetC x g
+  where
+  ts :: ((Either e a, Decoding s i), t, w) -> (Either e (a, t, w), Decoding s i)
+  ts ((Right a, b), x, w) = (Right (a, x, w), b)
+  ts ((Left e, b), _, _) = (Left e, b)
+{-# INLINE runRWSG #-}
+
+evalRWSG :: (Monad m, Monoid w) => r -> t -> GetM s i o e (RWST r w t m) a -> GetM s i o e m (a, w)
+evalRWSG r t =
+  (res <$>) . runRWSG r t
+  where
+  res (a, _, b) = (a, b)
+{-# INLINE evalRWSG #-}
+
+execRWSG :: (Monad m, Monoid w) => r -> t -> GetM s i o e (RWST r w t m) a -> GetM s i o e m (t, w)
+execRWSG r t =
+  (res <$>) . runRWSG r t
+  where
+  res (_, a, b) = (a, b)
+{-# INLINE execRWSG #-}
