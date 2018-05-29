@@ -161,6 +161,7 @@ instance (Monoid e, Monad m) => MonadPlus (GetM s i o e m) where
   mplus a b = a <|> b
   {-# INLINE mplus #-}
 
+-- | Leftover consumed input on error.
 tryP :: Monad m => GetM s i o e m a -> GetM s i o e m a
 tryP !g = getC $ \ !c -> do
   (!t, !d) <- runGetC (startDecoding $ decodingRead c) $ trackP g
@@ -169,6 +170,7 @@ tryP !g = getC $ \ !c -> do
     Left (!f, !e) -> forM_ f leftover >> return (Left e, c)
 {-# INLINE tryP #-}
 
+-- | Run a decoder, storing input stream.
 trackP :: Monad m => GetM s i o e m a -> GetM s i o ([i], e) m ([i], a)
 trackP !g = getC $ \ !c -> do
   (!r, !f) <- runGetC (Decoding { decodingRead = decodingRead c, tracking = Just [] }) g
@@ -254,14 +256,17 @@ runMaybeG g =
   me (Left b) = (Right Nothing, b)
 {-# INLINE runMaybeG #-}
 
+-- | Wrap the base monad in `ReaderT`.
 readerG :: Monad m => (r -> GetM s i o e m a) -> GetM s i o e (ReaderT r m) a
 readerG g = getC $ \ !x -> readerC $ \r -> runGetC x (g r)
 {-# INLINE readerG #-}
 
+-- | Run `ReaderT` in the base monad.
 runReaderG :: Monad m => r -> GetM s i o e (ReaderT r m) a -> GetM s i o e m a
 runReaderG r g = getC $ \ !x -> runReaderC r $ runGetC x g
 {-# INLINE runReaderG #-}
 
+-- | Wrap the base monad in `L.StateT`.
 stateLG :: Monad m => (t -> GetM s i o e m (a, t)) -> GetM s i o e (L.StateT t m) a
 stateLG g =
   getC $ \ !x -> stateLC $ \t -> st <$> runGetC x (g t)
@@ -271,6 +276,7 @@ stateLG g =
   st (Left e, b) = ((Left e, b), error "stateLG")
 {-# INLINE stateLG #-}
 
+-- | Run `L.StateT` in the base monad.
 runStateLG :: Monad m => t -> GetM s i o e (L.StateT t m) a -> GetM s i o e m (a, t)
 runStateLG t g =
   getC $ \ !x -> (ts <$>) $ runStateLC t $ runGetC x g
@@ -280,14 +286,17 @@ runStateLG t g =
   ts ((Left e, b), _) = (Left e, b)
 {-# INLINE runStateLG #-}
 
+-- | Evaluate `L.StateT` in the base monad.
 evalStateLG :: Monad m => t -> GetM s i o e (L.StateT t m) a -> GetM s i o e m a
 evalStateLG t = (fst <$>) . runStateLG t
 {-# INLINE evalStateLG #-}
 
+-- | Execute `L.StateT` in the base monad.
 execStateLG :: Monad m => t -> GetM s i o e (L.StateT t m) a -> GetM s i o e m t
 execStateLG t = (snd <$>) . runStateLG t
 {-# INLINE execStateLG #-}
 
+-- | Wrap the base monad in `StateT`.
 stateG :: Monad m => (t -> GetM s i o e m (a, t)) -> GetM s i o e (StateT t m) a
 stateG g =
   getC $ \ !x -> stateC $ \t -> st <$> runGetC x (g t)
@@ -297,6 +306,7 @@ stateG g =
   st (Left e, b) = ((Left e, b), error "stateLG")
 {-# INLINE stateG #-}
 
+-- | Run `StateT` in the base monad.
 runStateG :: Monad m => t -> GetM s i o e (StateT t m) a -> GetM s i o e m (a, t)
 runStateG t g =
   getC $ \ !x -> (ts <$>) $ runStateC t $ runGetC x g
@@ -306,14 +316,17 @@ runStateG t g =
   ts ((Left e, b), _) = (Left e, b)
 {-# INLINE runStateG #-}
 
+-- | Evaluate `StateT` in the base monad.
 evalStateG :: Monad m => t -> GetM s i o e (StateT t m) a -> GetM s i o e m a
 evalStateG t = (fst <$>) . runStateG t
 {-# INLINE evalStateG #-}
 
+-- | Execute `StateT` in the base monad.
 execStateG :: Monad m => t -> GetM s i o e (StateT t m) a -> GetM s i o e m t
 execStateG t = (snd <$>) . runStateG t
 {-# INLINE execStateG #-}
 
+-- | Wrap the base monad in `L.WriterT`.
 writerLG :: (Monad m, Monoid t) => GetM s i o e m (a, t) -> GetM s i o e (L.WriterT t m) a
 writerLG g =
   getC $ \ !x -> writerLC $ st <$> runGetC x g
@@ -323,6 +336,7 @@ writerLG g =
   st (Left e, b) = ((Left e, b), error "writerLG")
 {-# INLINE writerLG #-}
 
+-- | Run `L.WriterT` in the base monad.
 runWriterLG :: (Monad m, Monoid t) => GetM s i o e (L.WriterT t m) a -> GetM s i o e m (a, t)
 runWriterLG g =
   getC $ \ !x -> (ts <$>) $ runWriterLC $ runGetC x g
@@ -332,10 +346,12 @@ runWriterLG g =
   ts ((Left e, b), _) = (Left e, b)
 {-# INLINE runWriterLG #-}
 
+-- | Execute `L.WriterT` in the base monad.
 execWriterLG :: (Monad m, Monoid t) => GetM s i o e (L.WriterT t m) a -> GetM s i o e m t
 execWriterLG = (snd <$>) . runWriterLG
 {-# INLINE execWriterLG #-}
 
+-- | Wrap the base monad in `WriterT`.
 writerG :: (Monad m, Monoid t) => GetM s i o e m (a, t) -> GetM s i o e (WriterT t m) a
 writerG g =
   getC $ \ !x -> writerC $ st <$> runGetC x g
@@ -345,6 +361,7 @@ writerG g =
   st (Left e, b) = ((Left e, b), error "writerG")
 {-# INLINE writerG #-}
 
+-- | Run `WriterT` in the base monad.
 runWriterG :: (Monad m, Monoid t) => GetM s i o e (WriterT t m) a -> GetM s i o e m (a, t)
 runWriterG g =
   getC $ \ !x -> (ts <$>) $ runWriterC $ runGetC x g
@@ -354,10 +371,12 @@ runWriterG g =
   ts ((Left e, b), _) = (Left e, b)
 {-# INLINE runWriterG #-}
 
+-- | Execute `WriterT` in the base monad.
 execWriterG :: (Monad m, Monoid t) => GetM s i o e (WriterT t m) a -> GetM s i o e m t
 execWriterG = (snd <$>) . runWriterG
 {-# INLINE execWriterG #-}
 
+-- | Wrap the base monad in `L.RWST`.
 rwsLG :: (Monad m, Monoid w) => (r -> t -> GetM s i o e m (a, t, w)) -> GetM s i o e (L.RWST r w t m) a
 rwsLG g =
   getC $ \ !x -> rwsLC $ \r t -> st <$> runGetC x (g r t)
@@ -367,6 +386,7 @@ rwsLG g =
   st (Left e, b) = ((Left e, b), error "rwsLG.s", error "rwsLG.w")
 {-# INLINE rwsLG #-}
 
+-- | Run `L.RWST` in the base monad.
 runRWSLG :: (Monad m, Monoid w) => r -> t -> GetM s i o e (L.RWST r w t m) a -> GetM s i o e m (a, t, w)
 runRWSLG r t g =
   getC $ \ !x -> (ts <$>) $ runRWSLC r t $ runGetC x g
@@ -376,6 +396,7 @@ runRWSLG r t g =
   ts ((Left e, b), _, _) = (Left e, b)
 {-# INLINE runRWSLG #-}
 
+-- | Evaluate `L.RWST` in the base monad.
 evalRWSLG :: (Monad m, Monoid w) => r -> t -> GetM s i o e (L.RWST r w t m) a -> GetM s i o e m (a, w)
 evalRWSLG r t =
   (res <$>) . runRWSLG r t
@@ -383,6 +404,7 @@ evalRWSLG r t =
   res (a, _, b) = (a, b)
 {-# INLINE evalRWSLG #-}
 
+-- | Execute `L.RWST` in the base monad.
 execRWSLG :: (Monad m, Monoid w) => r -> t -> GetM s i o e (L.RWST r w t m) a -> GetM s i o e m (t, w)
 execRWSLG r t =
   (res <$>) . runRWSLG r t
@@ -390,6 +412,7 @@ execRWSLG r t =
   res (_, a, b) = (a, b)
 {-# INLINE execRWSLG #-}
 
+-- | Wrap the base monad in `RWST`.
 rwsG :: (Monad m, Monoid w) => (r -> t -> GetM s i o e m (a, t, w)) -> GetM s i o e (RWST r w t m) a
 rwsG g =
   getC $ \ !x -> rwsC $ \r t -> st <$> runGetC x (g r t)
@@ -399,6 +422,7 @@ rwsG g =
   st (Left e, b) = ((Left e, b), error "rwsG.s", error "rwsG.w")
 {-# INLINE rwsG #-}
 
+-- | Run `RWST` in the base monad.
 runRWSG :: (Monad m, Monoid w) => r -> t -> GetM s i o e (RWST r w t m) a -> GetM s i o e m (a, t, w)
 runRWSG r t g =
   getC $ \ !x -> (ts <$>) $ runRWSC r t $ runGetC x g
@@ -408,6 +432,7 @@ runRWSG r t g =
   ts ((Left e, b), _, _) = (Left e, b)
 {-# INLINE runRWSG #-}
 
+-- | Evaluate `RWST` in the base monad.
 evalRWSG :: (Monad m, Monoid w) => r -> t -> GetM s i o e (RWST r w t m) a -> GetM s i o e m (a, w)
 evalRWSG r t =
   (res <$>) . runRWSG r t
@@ -415,6 +440,7 @@ evalRWSG r t =
   res (a, _, b) = (a, b)
 {-# INLINE evalRWSG #-}
 
+-- | Execute `RWST` in the base monad.
 execRWSG :: (Monad m, Monoid w) => r -> t -> GetM s i o e (RWST r w t m) a -> GetM s i o e m (t, w)
 execRWSG r t =
   (res <$>) . runRWSG r t
