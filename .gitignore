@@ -1,6 +1,7 @@
 *~
 *.test
 *.lkshs
+*.cabal
 *.geany
 dist
 cabal-dev

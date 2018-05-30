@@ -136,33 +136,33 @@ getTailBytes = do
 
 getBytes1 :: Assertion
 getBytes1 = do
-  let ((!e, !c), !r) = runIdentity $ N.yieldMany testInput1 $$ (runGet get1 `fuseBoth` N.sinkList)
+  let ((!e, !c), !r) = runIdentity $ N.yieldMany testInput1 `connect` (runGet get1 `fuseBoth` N.sinkList)
   assertEqual "" (Right ()) e
   assertEqual "" [0x13 `shiftL` 8 .|. 0x12, 0x15 `shiftL` 8 .|. 0x14, 0x18 `shiftL` 8 .|. 0xF3] r
   assertEqual "" 6 c
 
 getBytes2 :: Assertion
 getBytes2 = do
-  let ((!e, !c), !r) = runIdentity $ N.yieldMany testInput2 $$ (runGet get1 `fuseBoth` N.sinkList)
+  let ((!e, !c), !r) = runIdentity $ N.yieldMany testInput2 `connect` (runGet get1 `fuseBoth` N.sinkList)
   assertEqual "" (Left True) e
   assertEqual "" [0x13 `shiftL` 8 .|. 0x12, 0x15 `shiftL` 8 .|. 0x14, 0x18 `shiftL` 8 .|. 0xF3] r
   assertEqual "" 6 c
 
 testSkip :: Assertion
 testSkip = do
-  let (!e, !c) = runIdentity $ N.yieldMany testInput3 $$ runGet get2
+  let (!e, !c) = runIdentity $ N.yieldMany testInput3 `connect` runGet get2
   assertEqual "" (Right 3) e
   assertEqual "" 3 c
 
 eofError :: Assertion
 eofError = do
-  let (!e, !c) = runIdentity $ N.yieldMany testInput4 $$ runGet getInt64host
+  let (!e, !c) = runIdentity $ N.yieldMany testInput4 `connect` runGet getInt64host
   assertEqual "" (Left ()) e
   assertEqual "" 3 c
 
 eofOrNotEof :: Assertion
 eofOrNotEof = do
-  let (!e, !c) = runIdentity $ N.yieldMany testInput4 $$ runGet (Right <$> getInt64host <|> Left <$> getTailBytes)
+  let (!e, !c) = runIdentity $ N.yieldMany testInput4 `connect` runGet (Right <$> getInt64host <|> Left <$> getTailBytes)
   assertEqual "" (Right $ Left "ABC") e
   assertEqual "" 3 c
 
@@ -170,7 +170,7 @@ testIsolateOverAlternativeIsolateNotEnough :: Assertion
 testIsolateOverAlternativeIsolateNotEnough = do
   let
     (!e, !c) = runIdentity $ N.yieldMany testInput5
-      $$ runGet (isolate 2 $ Right <$> getInt32le <|> Left <$> getWord8)
+      `connect` runGet (isolate 2 $ Right <$> getInt32le <|> Left <$> getWord8)
   assertEqual "" (Left $ Left $ Just 1) e
   assertEqual "" 1 c
 
@@ -178,7 +178,7 @@ testIsolateOverAlternativeIsolateExactly :: Assertion
 testIsolateOverAlternativeIsolateExactly = do
   let
     (!e, !c) = runIdentity $ N.yieldMany testInput5
-      $$ runGet (isolate 1 $ Right <$> getInt32le <|> Left <$> getWord8)
+      `connect` runGet (isolate 1 $ Right <$> getInt32le <|> Left <$> getWord8)
   assertEqual "" (Right $ Left $ fromIntegral $ ord 'A') e
   assertEqual "" 1 c
 
@@ -186,7 +186,7 @@ testIsolateOverAlternativeIsolateEnough :: Assertion
 testIsolateOverAlternativeIsolateEnough = do
   let
     (!e, !c) = runIdentity $ N.yieldMany testInput5
-      $$ runGet (isolate 4 $ Right <$> getInt32le <|> Left <$> getWord8)
+      `connect` runGet (isolate 4 $ Right <$> getInt32le <|> Left <$> getWord8)
   assertEqual "" (Right $ Right 1145258561) e
   assertEqual "" 4 c
 
@@ -194,7 +194,7 @@ testIsolateOverAlternativeIsolateEnoughButEof :: Assertion
 testIsolateOverAlternativeIsolateEnoughButEof = do
   let
     (!e, !c) = runIdentity $ N.yieldMany testInput4
-      $$ runGet (isolate 4 $ Right <$> getInt32le <|> Left <$> getWord8)
+      `connect` runGet (isolate 4 $ Right <$> getInt32le <|> Left <$> getWord8)
   assertEqual "" (Left $ Left Nothing) e
   assertEqual "" 0 c
 
@@ -202,7 +202,7 @@ testIsolateIsolateEnoughButEof :: Assertion
 testIsolateIsolateEnoughButEof = do
   let
     (!e, !c) = runIdentity $ N.yieldMany testInput4
-      $$ runGet (isolate 4 getWord8)
+      `connect` runGet (isolate 4 getWord8)
   assertEqual "" (Left $ Left $ Just 1) e
   assertEqual "" 1 c
 
@@ -210,13 +210,13 @@ testIsolateIsolateEnoughButEofEarly :: Assertion
 testIsolateIsolateEnoughButEofEarly = do
   let
     (!e, !c) = runIdentity $ N.yieldMany testInput7
-      $$ runGet (isolate 4 $ getWord8 >> getWord8 >> getWord8 >> getWord8)
+      `connect` runGet (isolate 4 $ getWord8 >> getWord8 >> getWord8 >> getWord8)
   assertEqual "" (Left $ Left Nothing) e
   assertEqual "" 0 c
 
 testAlternativeRollback :: Assertion
 testAlternativeRollback = do
-  let (!e, !c) = runIdentity $ N.yieldMany testInput6 $$ runGet ((skip 9 >> throwError ()) <|> getWord64le)
+  let (!e, !c) = runIdentity $ N.yieldMany testInput6 `connect` runGet ((skip 9 >> throwError ()) <|> getWord64le)
   assertEqual "" (Right $ 0x01 .|. 0x02 `shiftL` 8 .|. 0x03 `shiftL` 16 .|. 0x04 `shiftL` 24 .|. 0x05 `shiftL` 32 .|. 0x06 `shiftL` 40 .|. 0x07 `shiftL` 48 .|. 0x08 `shiftL` 56) e
   assertEqual "" 8 c
 
@@ -240,7 +240,7 @@ recordsInput =
 
 testRecords :: Assertion
 testRecords = do
-  let ((!e, !c), !r) = runIdentity $ N.yieldMany recordsInput $$ (runGet records `fuseBoth` N.sinkList)
+  let ((!e, !c), !r) = runIdentity $ N.yieldMany recordsInput `connect` (runGet records `fuseBoth` N.sinkList)
   assertEqual (show c) (Right ()) e
   assertEqual "" [[3978425819141910832, 3978425819141910832, 3978425819141910832], [3978425819141910832, 3978425819141910832], [3978425819141910832]] r
   assertEqual "" 48 c
@@ -274,7 +274,7 @@ testLeftoversInIsolate = do
       !r <- mapError Right $ getByteString 2
       ensureEof $ Right ()
       return r
-  let (!e, !c) = runIdentity $ yield "ABCD" $$ runGet g
+  let (!e, !c) = runIdentity $ yield "ABCD" `connect` runGet g
   assertEqual "" (Right "CD") e
   assertEqual "" 4 c
 
@@ -303,7 +303,7 @@ testZeroInput1 =
 
 testSkipUntilZero :: Assertion
 testSkipUntilZero = do
-  let (!r, !c) = runIdentity $ N.yieldMany testZeroInput1 $$ runGet (skipUntilZero >> getRemainingLazyByteString)
+  let (!r, !c) = runIdentity $ N.yieldMany testZeroInput1 `connect` runGet (skipUntilZero >> getRemainingLazyByteString)
   assertEqual "" ((Right "\0zx8") :: Either Void ByteString) r
   assertEqual "" 10 c
 
@@ -312,5 +312,5 @@ w32 = getWord32le ?>> ("Unexpected EOF at " ++) <$> show <$> bytesRead
 
 testErrorMap :: Assertion
 testErrorMap = do
-  let !r = runIdentity $ N.yieldMany [] $$ G.runGet w32
+  let !r = runIdentity $ N.yieldMany [] `connect` G.runGet w32
   assertEqual "" (Left "Unexpected EOF at 0") r

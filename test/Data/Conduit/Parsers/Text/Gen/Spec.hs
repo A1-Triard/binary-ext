@@ -14,21 +14,25 @@
 -- limitations under the License.
 --
 
-import Control.Monad hiding (fail)
-import Test.HUnit.Base hiding (Label)
-import Test.HUnit.Text
-import qualified Data.Conduit.Parsers.Binary.Get.Spec
-import qualified Data.Conduit.Parsers.Binary.Put.Spec
-import qualified Data.Conduit.Parsers.Text.Parser.Spec
-import qualified Data.Conduit.Parsers.Text.Gen.Spec
+module Data.Conduit.Parsers.Text.Gen.Spec
+  ( tests
+  ) where
 
-main :: IO ()
-main = void $ runTestTT tests
+import Data.Conduit
+import qualified Data.Conduit.Combinators as N
+import Data.Functor.Identity
+import qualified Data.Text as S (Text)
+import Test.HUnit.Base hiding (Label)
+import Data.Conduit.Parsers.Binary.Put hiding (runPut)
+import Data.Conduit.Parsers.Text.Gen
 
 tests :: Test
 tests = TestList
-  [ Data.Conduit.Parsers.Binary.Get.Spec.tests
-  , Data.Conduit.Parsers.Binary.Put.Spec.tests
-  , Data.Conduit.Parsers.Text.Parser.Spec.tests
-  , Data.Conduit.Parsers.Text.Gen.Spec.tests
+  [ TestCase testGenEnum
   ]
+
+data CharKind = CharKindWhitespace | CharKindOrdinar deriving (Eq, Ord, Enum, Bounded, Show)
+
+testGenEnum :: Assertion
+testGenEnum = do
+  assertEqual "" "Whitespace" $ runConduitPure $ runTextGen (genEnum 8 CharKindWhitespace) .| N.sinkLazy

@@ -37,10 +37,12 @@ import Data.Semigroup
 import Data.String
 import qualified Data.Text as S (Text)
 
+-- | Collects encoding process feedback.
 class EncodingState s where
   type EncodingToken s :: *
   encoded :: EncodingToken s -> s -> s
 
+-- | Trivial encoding state.
 data VoidEncodingState = VoidEncodingState
 
 instance EncodingState VoidEncodingState where
@@ -48,7 +50,7 @@ instance EncodingState VoidEncodingState where
   encoded () = id
   {-# INLINE encoded #-}
 
--- | 'PutS' functor state.
+-- | 'PutS' monad state.
 data Encoding s m = Encoding
   { encodingWrote :: !s -- ^ Get the total number of bytes wrote to this point.
   , runEncoding :: !(m ()) -- ^ Get the 'Producer'.
@@ -70,7 +72,7 @@ startEncoding !bytes_wrote_before = Encoding
   }
 {-# INLINE startEncoding #-}
 
--- | Wrappers for 'Put' with inner monad @m@ and result @a@ (usually @()@).
+-- | Wrappers for 'PutM' with inner monad @m@ and result @a@ (usually @()@).
 newtype PutS s m a = S { runS :: State (Encoding s m) a }
 
 deriving instance Monad (PutS s m)
