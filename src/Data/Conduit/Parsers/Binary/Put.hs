@@ -88,7 +88,8 @@ runPut !p = runEncoding $ snd $ runPutS p $ startEncoding $ ByteOffset 0
 {-# INLINE runPut #-}
 
 -- | Get the total number of bytes wrote to this point.
--- Can be used with 'mfix' to result bytes count prediction:
+-- Can be used with 'Control.Monad.Fix.mfix' to result bytes count prediction:
+--
 -- > putWithSize :: (DefaultEncodingState s, Monad m) => PutM s i S.ByteString m () -> PutM s i S.ByteString m ()
 -- > putWithSize !p = void $ mfix $ \size -> do
 -- >   putWord64le size
