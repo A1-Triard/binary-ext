@@ -14,8 +14,8 @@
 -- limitations under the License.
 --
 
--- | Despite binary's 'S.Put' is fully-functional construction (unlike 'S.Get'),
--- we decided to provide this module for symmetry with 'Data.Binary.Conduit.Get'.
+-- | Despite binary's 'S.Put' is fully-functional construction (unlike 'Data.Binary.Get.Get'),
+-- we decided to provide this module for symmetry with 'Data.Conduit.Parsers.Binary.Get'.
 
 module Data.Conduit.Parsers.Binary.Put
   ( PutM
@@ -78,7 +78,7 @@ class (EncodingState s, EncodingToken s ~ Word64, EncodingBytesWrote s) => Defau
 
 instance (EncodingState s, EncodingToken s ~ Word64, EncodingBytesWrote s) => DefaultEncodingState s where
 
--- | The shortening of 'PutM' for the most common use case.
+-- | The shortening of 'PutM' for the most common use case of binary serialization.
 type Put = forall s i m. (DefaultEncodingState s, Monad m) => PutM s i S.ByteString m ()
 
 -- | Run an encoder presented as a 'Put' monad.

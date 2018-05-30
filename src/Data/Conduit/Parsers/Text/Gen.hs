@@ -43,7 +43,7 @@ class (EncodingState s, EncodingToken s ~ ()) => DefaultTextGenState s where
 
 instance (EncodingState s, EncodingToken s ~ ()) => DefaultTextGenState s where
 
--- | The shortening of 'PutM' for the most common use case.
+-- | The shortening of 'PutM' for the most common use case of text serialization.
 type TextGen = forall s i m. (DefaultTextGenState s, Monad m) => PutM s i S.Text m ()
 
 -- | Run an encoder presented as a 'PutM' monad.

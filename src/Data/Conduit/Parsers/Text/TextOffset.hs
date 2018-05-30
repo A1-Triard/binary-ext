@@ -14,16 +14,6 @@
 -- limitations under the License.
 --
 
--- | At the first look, Data.Binary.Conduit.Get module is very similar with Data.Binary.Get.
--- The main differences between them are the following.
--- While the 'S.Get' from binary is a very custom monad,
--- the local 'Get' is 'ConduitT', which leads to easy integration in complicated format parsing.
--- The Data.Binary.Get module does not have a function to create custom 'S.Get' monad,
--- this module provides 'getC'.
--- Unlike 'isolate' from binary, local 'isolate' does not "cut" bytes counter.
--- While the binary's 'S.Get' is 'MonadFail', which leads to very ugly errors handling
--- in complicated cases, local 'Get' is 'MonadError'.
-
 module Data.Conduit.Parsers.Text.TextOffset
   ( TextOffset (..)
   ) where
