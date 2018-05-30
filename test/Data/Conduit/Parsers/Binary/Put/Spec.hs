@@ -49,7 +49,7 @@ testPut1 n = do
 
 testExample :: Assertion
 testExample = do
-  runPut (putWithSize $ testPut1 3) $$ testResult
+  runPut (putWithSize $ testPut1 3) `connect` testResult
   where
   testResult = do
     (\x -> lift $ assertEqual "" (Right $ 3 * fromIntegral (finiteBitSize (0 :: Word))) x) =<< runGet getWord64le

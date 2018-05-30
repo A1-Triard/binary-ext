@@ -62,7 +62,7 @@ tests = TestList
   , TestCase testErrorMap
   ]
 
-runGet :: Monad m => GetM G.ByteOffset i o e m a -> ConduitM i o m (Either e a, Word64)
+runGet :: Monad m => GetT G.ByteOffset i o e m a -> ConduitT i o m (Either e a, Word64)
 runGet !g = (\(!r, !s) -> (r, G.decodingElemsRead s)) <$> G.runGetC (G.startDecoding $ G.ByteOffset 0) g
 
 testInput1 :: [S.ByteString]
@@ -116,7 +116,7 @@ ensureEof e = do
   eof <- N.nullE
   if eof then return () else throwError e
 
-get1 :: (DefaultDecodingState s, Monad m) => GetM s S.ByteString Word16 Bool m ()
+get1 :: (DefaultDecodingState s, Monad m) => GetT s S.ByteString Word16 Bool m ()
 get1 = do
   yield =<< mapError (const False) getWord16le
   yield =<< mapError (const False) getWord16le
@@ -226,7 +226,7 @@ recordBody = whileM (not <$> N.nullE) $ mapError (const ()) $ isolate 8 getWord6
 record :: Word64 -> Get (Either (Maybe Word64) ()) [Word64]
 record z = isolate z recordBody
 
-records :: (DefaultDecodingState s, Monad m) => GetM s S.ByteString [Word64] (Either (Maybe Word64) ()) m ()
+records :: (DefaultDecodingState s, Monad m) => GetT s S.ByteString [Word64] (Either (Maybe Word64) ()) m ()
 records = do
   yield =<< record 24
   yield =<< record 16
@@ -245,7 +245,7 @@ testRecords = do
   assertEqual "" [[3978425819141910832, 3978425819141910832, 3978425819141910832], [3978425819141910832, 3978425819141910832], [3978425819141910832]] r
   assertEqual "" 48 c
 
-takeE :: Monad m => Int -> ConduitM S.ByteString o m S.ByteString
+takeE :: Monad m => Int -> ConduitT S.ByteString o m S.ByteString
 takeE !n =
   go SB.empty 0
   where

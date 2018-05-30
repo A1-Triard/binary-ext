@@ -83,7 +83,7 @@ type Put = forall s i m. (DefaultEncodingState s, Monad m) => PutM s i S.ByteStr
 
 -- | Run an encoder presented as a 'Put' monad.
 -- Returns 'Producer'.
-runPut :: PutM ByteOffset i o m () -> ConduitM i o m ()
+runPut :: PutM ByteOffset i o m () -> ConduitT i o m ()
 runPut !p = runEncoding $ snd $ runPutS p $ startEncoding $ ByteOffset 0
 {-# INLINE runPut #-}
 

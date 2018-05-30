@@ -17,7 +17,7 @@
 -- | At the first look, Data.Binary.Conduit.Get module is very similar with Data.Binary.Get.
 -- The main differences between them are the following.
 -- While the 'S.Get' from binary is a very custom monad,
--- the local 'Get' is 'ConduitM', which leads to easy integration in complicated format parsing.
+-- the local 'Get' is 'ConduitT', which leads to easy integration in complicated format parsing.
 -- The Data.Binary.Get module does not have a function to create custom 'S.Get' monad,
 -- this module provides 'getC'.
 -- Unlike 'isolate' from binary, local 'isolate' does not "cut" bytes counter.
@@ -29,7 +29,7 @@ module Data.Conduit.Parsers.Text.Parser
   , (?=>>)
   , (?>>)
   , DefaultParsingState
-  , GetM
+  , GetT
   , Parser
   , runParser
   , charsRead
@@ -120,33 +120,33 @@ class (DecodingState s, DecodingToken s ~ S.Text, DecodingTextRead s) => Default
 
 instance (DecodingState s, DecodingToken s ~ S.Text, DecodingTextRead s) => DefaultParsingState s where
 
--- | The shortening of 'GetM' for the most common use case.
-type Parser e a = forall s o m. (DefaultParsingState s, Monad m) => GetM s S.Text o e m a
+-- | The shortening of 'GetT' for the most common use case.
+type Parser e a = forall s o m. (DefaultParsingState s, Monad m) => GetT s S.Text o e m a
 
 -- | Run a decoder presented as a 'Get' monad.
 -- Returns decoder result and consumed bytes count.
-runParser :: Monad m => GetM TextOffset i o e m a -> ConduitM i o m (Either e a)
+runParser :: Monad m => GetT TextOffset i o e m a -> ConduitT i o m (Either e a)
 runParser !g = fst <$> runGetC (startDecoding $ TextOffset 0 0 0) g
 {-# INLINE runParser #-}
 
 -- | Get the total number of bytes read to this point.
-charsRead :: (DecodingState s, DecodingElemsRead s, Monad m) => GetM s i o e m Word64
+charsRead :: (DecodingState s, DecodingElemsRead s, Monad m) => GetT s i o e m Word64
 charsRead = elemsRead
 {-# INLINE charsRead #-}
 
 -- | Get the total number of bytes read to this point.
-linesRead :: (DecodingState s, DecodingLinesRead s, Monad m) => GetM s i o e m Word64
+linesRead :: (DecodingState s, DecodingLinesRead s, Monad m) => GetT s i o e m Word64
 linesRead = getC $ \ !x -> return (Right $ decodingLinesRead x, x)
 {-# INLINE linesRead #-}
 
 -- | Get the total number of bytes read to this point.
-columnsRead :: (DecodingState s, DecodingColumnsRead s, Monad m) => GetM s i o e m Word64
+columnsRead :: (DecodingState s, DecodingColumnsRead s, Monad m) => GetT s i o e m Word64
 columnsRead = getC $ \ !x -> return (Right $ decodingColumnsRead x, x)
 {-# INLINE columnsRead #-}
 
 -- | Run the given 'S.Get' monad from binary package
 -- and convert result into 'Get'.
-castParser :: (DecodingState s, DecodingToken s ~ S.Text, Monad m) => T.Parser a -> GetM s S.Text o (NonEmpty String) m a
+castParser :: (DecodingState s, DecodingToken s ~ S.Text, Monad m) => T.Parser a -> GetT s S.Text o (NonEmpty String) m a
 castParser !g = getC $
   go (TP.Partial $ TP.parse g) ST.empty
   where
@@ -160,11 +160,11 @@ castParser !g = getC $
     go (continue next) next (decoded chunk decoding)
 {-# INLINE castParser #-}
 
-voidError :: Monad m => GetM s i o e m a -> GetM s i o () m a
+voidError :: Monad m => GetT s i o e m a -> GetT s i o () m a
 voidError = mapError (const ())
 {-# INLINE voidError #-}
 
-anyError :: Monad m => GetM s i o e' m a -> GetM s i o e m a
+anyError :: Monad m => GetT s i o e' m a -> GetT s i o e m a
 anyError = mapError (const $ error "Data.Conduit.Parsers.Text.Parser.anyError")
 {-# INLINE anyError #-}
 

@@ -33,7 +33,7 @@ tests = TestList
 
 testLinesRead :: Assertion
 testLinesRead = do
-  let !r = runIdentity $ N.yieldMany testInput1 $$ runParser parser1
+  let !r = runIdentity $ N.yieldMany testInput1 `connect` runParser parser1
   assertEqual "" (Right ('t', 'x')) r
 
 parser1 :: Parser () (Char, Char)

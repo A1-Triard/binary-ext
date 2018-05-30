@@ -48,7 +48,7 @@ type TextGen = forall s i m. (DefaultTextGenState s, Monad m) => PutM s i S.Text
 
 -- | Run an encoder presented as a 'PutM' monad.
 -- Returns 'Producer'.
-runTextGen :: PutM VoidEncodingState i o m () -> ConduitM i o m ()
+runTextGen :: PutM VoidEncodingState i o m () -> ConduitT i o m ()
 runTextGen !p = runEncoding $ snd $ runPutS p $ startEncoding VoidEncodingState
 {-# INLINE runTextGen #-}
 

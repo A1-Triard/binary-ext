@@ -84,8 +84,8 @@ instance Monad m => Semigroup (PutS s m ()) where
   a <> b = a >> b
   {-# INLINE (<>) #-}
 
--- | A 'ConduitM' with wrappers supposed to a binary serialization.
-type PutM s i o m a = PutS s (ConduitM i o m) a
+-- | A 'ConduitT' with wrappers supposed to a binary serialization.
+type PutM s i o m a = PutS s (ConduitT i o m) a
 
 instance (EncodingState s, EncodingToken s ~ (), Monad m) => IsString (PutM s i S.Text m ()) where
   fromString x = putS $ \ !t -> ((), encoded (yield (fromString x), ()) t)

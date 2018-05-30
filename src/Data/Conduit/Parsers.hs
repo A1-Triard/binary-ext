@@ -53,12 +53,12 @@ instance (DecodingState s, DecodingElemsRead s) => DecodingElemsRead (Decoding s
   {-# INLINE decodingElemsRead #-}
 
 -- | Get the total number of bytes read to this point.
-elemsRead :: (DecodingState s, DecodingElemsRead s, Monad m) => GetM s i o e m Word64
+elemsRead :: (DecodingState s, DecodingElemsRead s, Monad m) => GetT s i o e m Word64
 elemsRead = getC $ \ !x -> return (Right $ decodingElemsRead x, x)
 {-# INLINE elemsRead #-}
 
 -- | Skip ahead @n@ bytes. Fails if fewer than @n@ bytes are available.
-skip :: (DecodingState s, Chunk (DecodingToken s), Monad m) => Word64 -> GetM s (DecodingToken s) o () m ()
+skip :: (DecodingState s, Chunk (DecodingToken s), Monad m) => Word64 -> GetT s (DecodingToken s) o () m ()
 skip !n = getC $
   go 0
   where
@@ -86,8 +86,8 @@ skip !n = getC $
 -- offset from 'bytesRead' will NOT be relative to the start of @isolate@.
 isolate :: (DecodingState s, Chunk (DecodingToken s), DecodingElemsRead s, Monad m)
   => Word64 -- ^ The number of bytes that must be consumed.
-  -> GetM s (DecodingToken s) o e m a -- ^ The decoder to isolate.
-  -> GetM s (DecodingToken s) o (Either (Maybe Word64) e) m a
+  -> GetT s (DecodingToken s) o e m a -- ^ The decoder to isolate.
+  -> GetT s (DecodingToken s) o (Either (Maybe Word64) e) m a
 isolate !n !g = do
   !o1 <- elemsRead
   !r <- getC $ flip runStateC $ runExceptC $ fuseLeftovers id (go 0) (exceptC $ stateC $ flip runGetC $ mapError Right g)
@@ -112,12 +112,12 @@ isolate !n !g = do
           yield h
 {-# INLINE isolate #-}
 
-endOfInput :: (DecodingState s, MonoFoldable (DecodingToken s), Monad m) => GetM s (DecodingToken s) o () m ()
+endOfInput :: (DecodingState s, MonoFoldable (DecodingToken s), Monad m) => GetT s (DecodingToken s) o () m ()
 endOfInput = do
   end <- N.nullE
   if end then return () else throwError ()
 {-# INLINE endOfInput #-}
 
-matchP :: (DecodingState s, Monoid (DecodingToken s), Monad m) => GetM s (DecodingToken s) o e m a -> GetM s (DecodingToken s) o e m (DecodingToken s, a)
+matchP :: (DecodingState s, Monoid (DecodingToken s), Monad m) => GetT s (DecodingToken s) o e m a -> GetT s (DecodingToken s) o e m (DecodingToken s, a)
 matchP !p = (\(!t, !r) -> (foldl (flip mappend) mempty t, r)) <$> mapError snd (trackP p)
 {-# INLINE matchP #-}

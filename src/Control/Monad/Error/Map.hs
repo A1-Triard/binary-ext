@@ -48,7 +48,7 @@ instance Monad m => MonadMapError e (ExceptT e m) e' (ExceptT e' m) where
   mapError f = ExceptT . (mapError f <$>) . runExceptT
   {-# INLINE mapError #-}
 
-instance MonadMapError e m_e e' m_e' => MonadMapError e (ConduitM i o m_e) e' (ConduitM i o m_e') where
+instance MonadMapError e m_e e' m_e' => MonadMapError e (ConduitT i o m_e) e' (ConduitT i o m_e') where
   mapError f = transPipe (mapError f)
   {-# INLINE mapError #-}
 
