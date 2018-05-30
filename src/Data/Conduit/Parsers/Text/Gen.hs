@@ -98,7 +98,9 @@ genHexByte !uppercase !c = do
 --
 -- > data CharKind = CharKindWhitespace | CharKindOrdinar deriving (Eq, Ord, Enum, Bounded, Show)
 --
--- @runConduitPure $ runTextGen (genEnum 8 CharKindWhitespace) .| sinkLazy = "Whitespace"@
+-- the following statement is true:
+--
+-- > runConduitPure $ runTextGen (genEnum 8 CharKindWhitespace) .| sinkLazy = "Whitespace"
 genEnum :: (Eq a, Ord a, Enum a, Bounded a, Show a) => Int -> a -> TextGen
 genEnum !prefix = genString . ST.drop prefix . ST.pack . show
 {-# INLINE genEnum #-}
