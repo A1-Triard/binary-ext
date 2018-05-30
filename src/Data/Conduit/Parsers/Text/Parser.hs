@@ -110,7 +110,7 @@ class (DecodingState s, DecodingToken s ~ S.Text, DecodingTextRead s) => Default
 
 instance (DecodingState s, DecodingToken s ~ S.Text, DecodingTextRead s) => DefaultParsingState s where
 
--- | The shortening of 'GetT' for the most common use case.
+-- | The shortening of 'GetT' for the most common use case of text deserialization.
 type Parser e a = forall s o m. (DefaultParsingState s, Monad m) => GetT s S.Text o e m a
 
 -- | Run a decoder presented as a 'Get' monad.

@@ -13,6 +13,24 @@
 -- See the License for the specific language governing permissions and
 -- limitations under the License.
 --
+-- | This module provides generic functions set useful for errortype-parameterized monads and monad transformers,
+-- such as 'Data.Conduit.Parsers.Binary.Get.Get'.
+-- Example:
+--
+-- > pSign :: Parser (Maybe Char) Bool
+-- > pSign = do
+-- >   c <- pChar ?>> return Nothing
+-- >   case c of
+-- >     '+' -> return False
+-- >     '-' -> return True
+-- >     x -> throwError (Just x)
+-- >
+-- > pSignedNumber :: Parser String Int
+-- > pSignedNumber = do
+-- >   is_negative <- fromMaybe False <$> option'' pSign
+-- >   value <- foldl1 (\ !a !b -> a * 10 + b) <$> many1'' pDigit ?>> return "digit or sign expected"
+-- >   return $ if is_negative then -value else value
+
 
 module Control.Monad.Error.Map
   ( MonadMapError (..)

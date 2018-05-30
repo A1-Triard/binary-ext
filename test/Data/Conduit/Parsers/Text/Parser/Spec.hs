@@ -18,9 +18,11 @@ module Data.Conduit.Parsers.Text.Parser.Spec
   ( tests
   ) where
 
+import Control.Monad.Error.Class
 import Data.Conduit
 import qualified Data.Conduit.Combinators as N
 import Data.Functor.Identity
+import Data.Maybe
 import qualified Data.Text as S (Text)
 import Test.HUnit.Base hiding (Label)
 import Data.Conduit.Parsers.Binary.Get hiding (runGet)
@@ -29,6 +31,7 @@ import Data.Conduit.Parsers.Text.Parser
 tests :: Test
 tests = TestList
   [ TestCase testLinesRead
+  , TestCase testSignedNumber
   ]
 
 testLinesRead :: Assertion
@@ -67,3 +70,25 @@ testInput1 =
   , "au\nx"
   , ""
   ]
+
+pSign :: Parser (Maybe Char) Bool
+pSign = do
+  c <- pChar ?>> return Nothing
+  case c of
+    '+' -> return False
+    '-' -> return True
+    x -> throwError (Just x)
+
+pSignedNumber :: Parser String Int
+pSignedNumber = do
+  is_negative <- fromMaybe False <$> option'' pSign
+  value <- foldl1 (\ !a !b -> a * 10 + b) <$> many1'' pDigit ?>> return "digit or sign expected"
+  return $ if is_negative then -value else value
+
+testSignedNumber :: Assertion
+testSignedNumber = do
+  assertEqual "" (Right 145) $ runIdentity $ yield "145" `connect` runParser pSignedNumber
+  assertEqual "" (Right 32) $ runIdentity $ yield "+32" `connect` runParser pSignedNumber
+  assertEqual "" (Right (-7)) $ runIdentity $ yield "-7" `connect` runParser pSignedNumber
+  assertEqual "" (Left "digit or sign expected") $ runIdentity $ yield "abc" `connect` runParser pSignedNumber
+  assertEqual "" (Left "digit or sign expected") $ runIdentity $ yield "-abc" `connect` runParser pSignedNumber

@@ -93,7 +93,7 @@ class (DecodingState s, DecodingToken s ~ S.ByteString, DecodingElemsRead s) => 
 
 instance (DecodingState s, DecodingToken s ~ S.ByteString, DecodingElemsRead s) => DefaultDecodingState s where
 
--- | The shortening of 'GetT' for the most common use case.
+-- | The shortening of 'GetT' for the most common use case of binary deserialization.
 type Get e a = forall s o m. (DefaultDecodingState s, Monad m) => GetT s S.ByteString o e m a
 
 -- | Run a decoder presented as a 'Get' monad.
