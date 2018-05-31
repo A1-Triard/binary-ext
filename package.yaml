@@ -11,7 +11,7 @@ category: Data, Parsing
 #extra-source-files:
 
 dependencies:
-- base >= 4.7 && < 5
+- base >= 4.11 && < 5
 - attoparsec
 - binary
 - bytestring
