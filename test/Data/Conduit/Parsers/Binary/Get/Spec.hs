@@ -28,7 +28,7 @@ import qualified Data.ByteString as S (ByteString)
 import qualified Data.ByteString as SB hiding (ByteString, head, last, init, tail)
 import Data.ByteString.Lazy (ByteString)
 import Data.Char
-import Data.Conduit
+import Data.Conduit hiding (ConduitM)
 import qualified Data.Conduit.Combinators as N
 import Data.Conduit.Lift
 import Data.Functor.Identity

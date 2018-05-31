@@ -91,7 +91,7 @@ import qualified Data.Attoparsec.Text as TP (parse, IResult (..))
 import qualified Data.Attoparsec.Text as Tp hiding (parse, parseOnly, Parser, Result, IResult, Done, Partial, Fail, inClass, notInClass, isEndOfLine, isHorizontalSpace)
 import Data.Bits
 import Data.Char
-import Data.Conduit
+import Data.Conduit hiding (ConduitM)
 import qualified Data.Conduit.Combinators as N
 import Data.List.NonEmpty hiding (take, takeWhile)
 import Data.NonNull hiding (head)

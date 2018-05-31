@@ -78,7 +78,7 @@ import Control.Monad.Trans.State.Strict
 import qualified Control.Monad.Trans.State.Lazy as L
 import Control.Monad.Trans.Writer.Strict
 import qualified Control.Monad.Trans.Writer.Lazy as L
-import Data.Conduit
+import Data.Conduit hiding (ConduitM)
 import Data.Conduit.Lift
 import Data.Maybe hiding (fromJust)
 

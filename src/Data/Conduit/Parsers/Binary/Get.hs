@@ -78,7 +78,7 @@ import qualified Data.ByteString as S (ByteString)
 import qualified Data.ByteString as SB hiding (ByteString, head, last, init, tail)
 import Data.ByteString.Lazy (ByteString)
 import qualified Data.ByteString.Lazy as B hiding (ByteString, head, last, init, tail)
-import Data.Conduit
+import Data.Conduit hiding (ConduitM)
 import Data.Int
 import Data.Maybe
 import Data.Semigroup hiding (Option)

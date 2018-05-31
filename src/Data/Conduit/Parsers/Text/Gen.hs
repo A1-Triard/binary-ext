@@ -31,7 +31,7 @@ module Data.Conduit.Parsers.Text.Gen
 
 import Data.Bits
 import Data.Char
-import Data.Conduit
+import Data.Conduit hiding (ConduitM)
 import qualified Data.Text as S (Text)
 import qualified Data.Text as ST hiding (Text, head, last, tail, init)
 import Data.Text.Lazy (Text)

@@ -67,7 +67,7 @@ import Data.ByteString.Lazy (ByteString)
 import qualified Data.ByteString.Lazy as B hiding (ByteString, head, last, init, tail)
 import Data.ByteString.Short (ShortByteString)
 import qualified Data.ByteString.Short as HB hiding (ShortByteString)
-import Data.Conduit
+import Data.Conduit hiding (ConduitM)
 import Data.Int
 import Data.Word
 import Data.Conduit.Parsers.Binary

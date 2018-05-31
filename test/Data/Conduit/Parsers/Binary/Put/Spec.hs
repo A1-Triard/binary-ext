@@ -24,7 +24,7 @@ import Control.Monad.Fix
 import Control.Monad.Trans.Class
 import Data.Bits
 import qualified Data.ByteString as S (ByteString)
-import Data.Conduit
+import Data.Conduit hiding (ConduitM)
 import qualified Data.Conduit.Combinators as N
 import Test.HUnit.Base hiding (Label)
 import Data.Conduit.Parsers.Binary.Get

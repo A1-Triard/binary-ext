@@ -32,7 +32,7 @@ module Data.Conduit.Parsers.PutS
 
 import Control.Monad.Fix
 import Control.Monad.Trans.State.Strict
-import Data.Conduit
+import Data.Conduit hiding (ConduitM)
 import Data.Semigroup
 import Data.String
 import qualified Data.Text as S (Text)

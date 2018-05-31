@@ -19,7 +19,7 @@ module Data.Conduit.Parsers.Text.Parser.Spec
   ) where
 
 import Control.Monad.Error.Class
-import Data.Conduit
+import Data.Conduit hiding (ConduitM)
 import qualified Data.Conduit.Combinators as N
 import Data.Functor.Identity
 import Data.Maybe

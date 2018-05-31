@@ -18,7 +18,7 @@ module Data.Conduit.Parsers.Text.Gen.Spec
   ( tests
   ) where
 
-import Data.Conduit
+import Data.Conduit hiding (ConduitM)
 import qualified Data.Conduit.Combinators as N
 import Data.Functor.Identity
 import qualified Data.Text as S (Text)
