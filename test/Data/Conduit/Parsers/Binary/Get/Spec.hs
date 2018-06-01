@@ -31,9 +31,7 @@ import Data.Char
 import Data.Conduit hiding (ConduitM)
 import qualified Data.Conduit.Combinators as N
 import Data.Conduit.Lift
-import Data.Functor.Identity
-import Data.Semigroup hiding (Option)
-import Data.Void
+import Data.Functor.Identity (runIdentity)
 import Data.Word
 import Test.HUnit.Base hiding (Label)
 import qualified Data.Conduit.Parsers as G
