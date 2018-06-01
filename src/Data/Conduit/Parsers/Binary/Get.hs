@@ -81,7 +81,6 @@ import qualified Data.ByteString.Lazy as B hiding (ByteString, head, last, init,
 import Data.Conduit hiding (ConduitM)
 import Data.Int
 import Data.Maybe
-import Data.Semigroup hiding (Option)
 import Data.Word
 import Control.Monad.Error.Map
 import Data.Conduit.Parsers

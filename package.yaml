@@ -1,7 +1,7 @@
 name: binary-ext
-version: 2.0.2
-synopsis: An alternate with strong-typed errors for `Data.Binary.Get` monad from `binary` package.
-description: An alternate with strong-typed errors for `Data.Binary.Get` monad from `binary` package.
+version: 2.0.3
+synopsis: "An alternate with strong-typed errors for `Data.Binary.Get` monad from `binary` package."
+description: "An alternate with strong-typed errors for `Data.Binary.Get` monad from `binary` package."
 github: "A1-Triard/binary-ext"
 license: Apache
 author: "Warlock <internalmike@gmail.com>"
@@ -45,7 +45,6 @@ default-extensions:
 ghc-options:
 - -fmax-pmcheck-iterations=100000000
 - -Wall
-- -fno-warn-unused-imports
 - -fprint-potential-instances
 - -fsimpl-tick-factor=110
 
