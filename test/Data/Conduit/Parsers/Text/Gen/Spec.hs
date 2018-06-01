@@ -20,9 +20,7 @@ module Data.Conduit.Parsers.Text.Gen.Spec
 
 import Data.Conduit hiding (ConduitM)
 import qualified Data.Conduit.Combinators as N
-import Data.Functor.Identity
 import Test.HUnit.Base hiding (Label)
-import Data.Conduit.Parsers.Binary.Put hiding (runPut)
 import Data.Conduit.Parsers.Text.Gen
 
 tests :: Test
