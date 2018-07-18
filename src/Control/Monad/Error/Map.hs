@@ -98,7 +98,7 @@ infixl 1 ?>>
 -- If @p@ fails, it returns @Nothing@.
 -- @option'' p@ never fails.
 --
--- > pPriority  = (digitToInt . fromMaybe 0) <$> option'' pDigit
+-- @pPriority  = (digitToInt . fromMaybe 0) <$> option'' pDigit@
 option'' ::
   ( MonadPlus m_Unit
   , MonadMapError e m_e () m_Unit
@@ -118,7 +118,7 @@ liftM2' f a b = do
 -- | @many'' p@ applies the action @p@ zero or more times. Returns a list of the returned values of @p@.
 -- @many'' p@ never fails.
 --
--- > pWord  = many'' pLetter
+-- @pWord  = many'' pLetter@
 many'' ::
   ( MonadPlus m_Unit
   , MonadMapError e m_e () m_Unit
@@ -133,7 +133,7 @@ many'' p =
 
 -- | @many1'' p@ applies the action @p@ one or more times. Returns a non-empty list of the returned values of @p@.
 --
--- > pWord  = many1'' pLetter
+-- @pWord  = many1'' pLetter@
 many1'' ::
   ( MonadPlus m_Unit
   , MonadMapError e m_e () m_Unit
@@ -148,7 +148,7 @@ many1'' p = do
 -- | @manyTill'' p@ end applies action @p@ zero or more times until action end succeeds,
 -- and returns the list of values returned by @p@. This can be used to scan comments:
 --
--- > pSimpleComment = pStringIs "<!--" *> manyTill'' pChar (pStringIs "-->")
+-- @pSimpleComment = pStringIs "<!--" *> manyTill'' pChar (pStringIs "-->")@
 -- (Note the overlapping parsers anyChar and string "-->". While this will work, it is not very efficient, as it will cause a lot of backtracking.)
 manyTill'' ::
   ( MonadPlus m_Unit
@@ -170,7 +170,7 @@ manyTill'' p end =
 -- | @sepBy'' p sep@ applies zero or more occurrences of @p@, separated by @sep@. Returns a list of the values returned by @p@.
 -- @sepBy'' p@ never fails.
 --
--- > commaSep p  = p `sepBy''` (pCharIs ',')
+-- @commaSep p  = p `sepBy''` (pCharIs ',')@
 sepBy'' ::
   ( MonadPlus m_Unit
   , MonadMapError e m_e () m_Unit
@@ -190,7 +190,7 @@ sepBy'' p sep = do
 -- | @sepBy1'' p sep@ applies one or more occurrences of @p@, separated by @sep@.
 -- Returns a non-empty list of the values returned by @p@.
 --
--- > commaSep p  = p `sepBy1''` (pCharIs ',')
+-- @commaSep p  = p `sepBy1''` (pCharIs ',')@
 sepBy1'' ::
   ( MonadPlus m_Unit
   , MonadMapError e m_e () m_Unit

@@ -14,7 +14,7 @@
 -- limitations under the License.
 --
 
--- | This module provides the 'PutS' functor,
+-- | This module provides the 'PutS' monad,
 -- and all functions, which could not be defined using 'PutS' public interface only.
 
 module Data.Conduit.Parsers.PutS
@@ -51,8 +51,8 @@ instance EncodingState VoidEncodingState where
 
 -- | 'PutS' monad state.
 data Encoding s m = Encoding
-  { encodingWrote :: !s -- ^ Get the total number of bytes wrote to this point.
-  , runEncoding :: !(m ()) -- ^ Get the 'Producer'.
+  { encodingWrote :: !s -- ^ Get the feedback of the encoding process that is currently collected.
+  , runEncoding :: !(m ()) -- ^ Get the 'ConduitT'.
   }
 
 instance (EncodingState s, Monad m) => EncodingState (Encoding s m) where
@@ -71,7 +71,7 @@ startEncoding !bytes_wrote_before = Encoding
   }
 {-# INLINE startEncoding #-}
 
--- | Wrappers for 'PutM' with inner monad @m@ and result @a@ (usually @()@).
+-- | A serializer with conduit @m@ and result @a@ (usually @()@).
 newtype PutS s m a = S { runS :: State (Encoding s m) a }
 
 deriving instance Monad (PutS s m)
@@ -83,20 +83,22 @@ instance Monad m => Semigroup (PutS s m ()) where
   a <> b = a >> b
   {-# INLINE (<>) #-}
 
--- | A 'ConduitT' with wrappers supposed to a binary or text serialization.
+-- | A wrapped 'ConduitT' supposed to a binary or text serialization.
 type PutM s i o m a = PutS s (ConduitT i o m) a
 
 instance (EncodingState s, EncodingToken s ~ (), Monad m) => IsString (PutM s i S.Text m ()) where
   fromString x = putS $ \ !t -> ((), encoded (yield (fromString x), ()) t)
   {-# INLINE fromString #-}
 
--- | Run a 'Put' monad, unwrapping all wrappers in a reversible way.
+-- | Run a serializer represented by 'PutM' monad, unwrapping all wrappers in a reversible way.
+--
 -- @'putS' . runPutS = 'id'@
 runPutS :: PutS s m a -> Encoding s m -> (a, Encoding s m)
 runPutS = runState . runS
 {-# INLINE runPutS #-}
 
--- | Custom 'Put'.
+-- | Custom 'PutM'.
+--
 -- @putS . 'runPutS' = 'id'@
 putS :: (Encoding s m -> (a, Encoding s m)) -> PutS s m a
 putS = S . state
