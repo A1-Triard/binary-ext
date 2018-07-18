@@ -1,5 +1,5 @@
 name: binary-ext
-version: 2.0.4
+version: 2.0.5
 synopsis: "An alternate with strong-typed errors for `Data.Binary.Get` monad from `binary` package."
 description: "An alternate with strong-typed errors for `Data.Binary.Get` monad from `binary` package."
 github: "A1-Triard/binary-ext"

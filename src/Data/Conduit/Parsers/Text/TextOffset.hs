@@ -13,6 +13,7 @@
 -- See the License for the specific language governing permissions and
 -- limitations under the License.
 --
+-- | Default text parser state.
 
 module Data.Conduit.Parsers.Text.TextOffset
   ( TextOffset (..)

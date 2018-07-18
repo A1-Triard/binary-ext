@@ -1,5 +1,5 @@
 --
--- Copyright 2017 Warlock <internalmike@gmail.com>
+-- Copyright 2017, 2018 Warlock <internalmike@gmail.com>
 --
 -- Licensed under the Apache License, Version 2.0 (the "License");
 -- you may not use this file except in compliance with the License.
@@ -13,6 +13,7 @@
 -- See the License for the specific language governing permissions and
 -- limitations under the License.
 --
+-- | Default binary parser and generator state.
 
 module Data.Conduit.Parsers.Binary.ByteOffset
   ( ByteOffset (..)
@@ -26,6 +27,7 @@ import Data.Conduit.Parsers.Binary
 import Data.Conduit.Parsers.GetC
 import Data.Conduit.Parsers.PutS
 
+-- | Bytes count.
 newtype ByteOffset = ByteOffset Word64 deriving Show
 
 instance DecodingState ByteOffset where
